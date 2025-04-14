@@ -4,3 +4,6 @@ You can also easily merge a ROS 2 mcap capture via the [mcap CLI tool](https://m
 
 This tool currently only supports `sensor_msgs/msg/Image`, but support for others can easily be added.
 Time synchronization is based on setting the ROS 2 header's timestamp field to [TIME_REFERENCE::IMAGE](https://www.stereolabs.com/docs/api/group__Video__group.html#ga9401e0c9b9fec46d2eb300ffd2fc72c9).
+
+The package needs access to the `sensor_msgs` package so we can easily serialize using [cdr](https://www.omg.org/cgi-bin/doc?formal/02-06-51) which is used by ROS 2.
+You can then use [mcap](https://github.com/foxglove/mcap) or [rosbag2](https://github.com/ros2/rosbag2) to read and process the mcap/bag file as normal.
