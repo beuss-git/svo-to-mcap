@@ -4,10 +4,12 @@
 #include <opencv2/opencv.hpp>
 #include <sl/Camera.hpp>
 
-// Sample includes
-#include "utils.hpp"
-#include <iostream>
+// MCAP includes
 #include <mcap/writer.hpp>
+
+// Sample includes
+#include "ros2/Ros2ImageWriter.hpp"
+#include <iostream>
 
 void print(std::string msg_prefix,
            sl::ERROR_CODE err_code = sl::ERROR_CODE::SUCCESS,
@@ -24,14 +26,16 @@ void progress_bar(float ratio, unsigned int w) {
 }
 
 static bool g_exit_app = false;
+
 int main() {
+
   const std::string svo_input_path = "/mnt/ingest/bags/temp8/cam_prt.svo2";
 
   // Create ZED objects
   sl::Camera zed;
 
   // Specify SVO path parameter
-  sl::InitParameters init_parameters;
+  sl::InitParameters init_parameters{};
   init_parameters.input.setFromSVOFile(svo_input_path.c_str());
   init_parameters.coordinate_units = sl::UNIT::MILLIMETER;
 
@@ -43,18 +47,42 @@ int main() {
     print("Camera Open", zed_open_state, "Exit program.");
     return EXIT_FAILURE;
   }
-
   // Get image size
   sl::Resolution image_size =
       zed.getCameraInformation().camera_configuration.resolution;
 
   sl::Mat left_image(image_size, sl::MAT_TYPE::U8_C4);
-  cv::Mat left_image_ocv = util::sl_mat_2_cv_mat(left_image);
+
+  std::string outputFilename = "output.mcap";
+  mcap::McapWriter writer;
+  {
+    auto options = mcap::McapWriterOptions("");
+
+    options.compression = mcap::Compression::Lz4;
+    const auto res = writer.open(outputFilename, options);
+    if (!res.ok()) {
+      std::cerr << "Failed to open " << outputFilename
+                << " for writing: " << res.message << std::endl;
+      return 1;
+    }
+  }
+
+  Ros2ImageWriter ros2_image_writer(writer);
+  ros2_image_writer.init();
+
+  ros2_image_writer.register_topics();
+
+  std::cout << "Created channel and schema\n";
 
   int nb_frames = zed.getSVONumberOfFrames();
   int svo_position = 0;
   zed.setSVOPosition(svo_position);
 
+  // TODO: Look at these to see how we can do the rest of the image types:
+  // https://github.com/stereolabs/zed-ros-wrapper/blob/3af19a269b0fcdbd43029f85568cfbd42504fde4/zed_nodelets/src/zed_nodelet/src/zed_wrapper_nodelet.cpp#L2427
+  // We are missing pointcloud, disparity image, depth image, objects, Path,
+  // disparity left and right, confidence left and right and so on. Imu,
+  uint32_t frame_index = 0;
   while (!g_exit_app) {
     sl::ERROR_CODE err = zed.grab();
     if (err == sl::ERROR_CODE::SUCCESS) {
@@ -62,6 +90,13 @@ int main() {
 
       // Retrieve SVO images
       zed.retrieveImage(left_image, sl::VIEW::LEFT);
+      const auto timestamp = zed.getTimestamp(sl::TIME_REFERENCE::IMAGE);
+
+      if (!ros2_image_writer.write_image(left_image, timestamp)) {
+        zed.close();
+        return 1;
+      }
+      std::cout << "Wrote mcap\n";
     }
 
     // Display progress
