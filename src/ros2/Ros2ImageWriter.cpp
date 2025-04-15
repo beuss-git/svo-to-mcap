@@ -1,4 +1,5 @@
 #include "Ros2ImageWriter.hpp"
+
 #include "rclcpp/time.hpp"
 #include "sensor_msgs/image_encodings.hpp"
 #include "sensor_msgs/msg/image.hpp"
@@ -91,6 +92,7 @@ serializeImageMsgWithFastCDR(const sensor_msgs::msg::Image &msg) {
       (std::byte *)serialized_msg.get_rcl_serialized_message().buffer +
           serialized_msg.size());
 }
+
 rclcpp::Time slTime2Ros(sl::Timestamp t) {
   uint32_t sec = static_cast<uint32_t>(t.getNanoseconds() / 1000000000);
   uint32_t nsec = static_cast<uint32_t>(t.getNanoseconds() % 1000000000);
@@ -98,12 +100,13 @@ rclcpp::Time slTime2Ros(sl::Timestamp t) {
 }
 
 bool Ros2ImageWriter::write_image(sl::Mat &img,
-                                  const sl::Timestamp svo_timestamp) {
+                                  const sl::Timestamp svo_timestamp,
+                                  const std::string &frame_id) {
   std::cout << "Serializing image\n";
 
   sensor_msgs::msg::Image ros_image;
 
-  imageToROSmsg(ros_image, img, "frame_id_ex", slTime2Ros(svo_timestamp));
+  imageToROSmsg(ros_image, img, frame_id, slTime2Ros(svo_timestamp));
   const auto payload = serializeImageMsgWithFastCDR(ros_image);
   std::cout << "Done serializing image\n";
   static int seq = 0;
@@ -111,18 +114,20 @@ bool Ros2ImageWriter::write_image(sl::Mat &img,
   std::cout << "Payload size: " << payload.size() << std::endl;
 
   mcap::Message msg;
-  msg.channelId = m_prt_image_channel.id;
-  msg.sequence = seq++; // TODO: increase? We need one per topic.
+  msg.channelId = m_cameras["prt"]->left_image_rect_color().id;
+  msg.sequence = 0; // TODO: ? Research what benefits this gives us.
   msg.publishTime = svo_timestamp.getNanoseconds();
   msg.logTime = msg.publishTime;
   msg.data = payload.data();
   msg.dataSize = payload.size();
 
+  std::cout << "Writing image\n";
   auto res = m_writer.write(msg);
   if (!res.ok()) {
     std::cerr << "Failed to write message: " << res.message << std::endl;
     m_writer.terminate();
     return false;
   }
+  std::cout << "Done writing image\n";
   return true;
 }

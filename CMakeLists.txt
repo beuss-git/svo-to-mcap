@@ -13,6 +13,7 @@ if (NOT LINK_SHARED_ZED AND MSVC)
 endif()
 
 include(cmake/mcap.cmake)
+include(cmake/yaml-cpp.cmake)
 
 find_package(ament_cmake REQUIRED)
 find_package(ZED 3 REQUIRED)
@@ -37,6 +38,7 @@ link_directories(${OpenCV_LIBRARY_DIRS})
 add_executable(${PROJECT_NAME} 
   src/main.cpp 
   src/mcap_impl.cpp
+  src/config.cpp
   src/ros2/Ros2ImageWriter.cpp 
 )
 
@@ -48,7 +50,7 @@ endif()
 
 ament_target_dependencies(${PROJECT_NAME} std_msgs sensor_msgs rclcpp)
 
-target_link_libraries(${PROJECT_NAME} ${ZED_LIBS} ${OpenCV_LIBRARIES} zstd fastcdr)
+target_link_libraries(${PROJECT_NAME} ${ZED_LIBS} ${OpenCV_LIBRARIES} zstd fastcdr yaml-cpp::yaml-cpp)
 
 install(TARGETS
   ${PROJECT_NAME}

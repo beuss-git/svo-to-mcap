@@ -8,6 +8,7 @@
 #include <mcap/writer.hpp>
 
 // Sample includes
+#include "config.hpp"
 #include "ros2/Ros2ImageWriter.hpp"
 #include <iostream>
 
@@ -29,7 +30,16 @@ static bool g_exit_app = false;
 
 int main() {
 
-  const std::string svo_input_path = "/mnt/ingest/bags/temp8/cam_prt.svo2";
+  const Config cfg = config::parse("config.yaml").value();
+  for (auto cam : cfg.cameras) {
+    std::cout << "cam.name: " << cam.name << "\n";
+  }
+
+  // const std::string svo_input_path = "/mnt/ingest/bags/temp8/cam_prt.svo2";
+  // const std::string svo_input_path =
+  // "/home/user/bags/watercam3/test_prt.svo";
+  const std::string svo_input_path =
+      "/home/user/bags/watercam3_compressed/test_prt_compressed.svo";
 
   // Create ZED objects
   sl::Camera zed;
@@ -67,10 +77,8 @@ int main() {
     }
   }
 
-  Ros2ImageWriter ros2_image_writer(writer);
+  Ros2ImageWriter ros2_image_writer(writer, cfg);
   ros2_image_writer.init();
-
-  ros2_image_writer.register_topics();
 
   std::cout << "Created channel and schema\n";
 
@@ -92,10 +100,13 @@ int main() {
       zed.retrieveImage(left_image, sl::VIEW::LEFT);
       const auto timestamp = zed.getTimestamp(sl::TIME_REFERENCE::IMAGE);
 
-      if (!ros2_image_writer.write_image(left_image, timestamp)) {
+      // FIXME: use the correct frame id (doesn't really matter until we get the
+      // point clouds or if we want to project the image into 3D space
+      if (!ros2_image_writer.write_image(left_image, timestamp, "fix_me")) {
         zed.close();
         return 1;
       }
+
       std::cout << "Wrote mcap\n";
     }
 
