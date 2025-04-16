@@ -32,7 +32,7 @@ static sl::MAT_TYPE get_mat_type(sl::VIEW view)
     case sl::VIEW::RIGHT_UNRECTIFIED_GRAY:
         return sl::MAT_TYPE::U8_C1;
     default:
-        std::cerr << "Unknown view type: " << (int)view << "\n";
+        std::cerr << "Unknown view type: " << static_cast<int>(view) << "\n";
         std::exit(1);
     }
 }
@@ -63,7 +63,8 @@ static sl::MAT_TYPE get_mat_type(sl::MEASURE measure)
     case sl::MEASURE::DEPTH_U16_MM_RIGHT:
         return sl::MAT_TYPE::U16_C1;
     default:
-        std::cerr << "Unknown measure type: " << (int)measure << "\n";
+        std::cerr << "Unknown measure type: " << static_cast<int>(measure)
+                  << "\n";
         std::exit(1);
     }
 }
@@ -91,7 +92,7 @@ static std::string get_frame_id(
     return camera_name + "_left_camera_optical_frame";
 }
 
-static bool is_point_cloud(std::variant<sl::VIEW, sl::MEASURE> type)
+inline bool is_point_cloud(std::variant<sl::VIEW, sl::MEASURE> type)
 {
     if (!std::holds_alternative<sl::MEASURE>(type)) {
         return false;
@@ -139,7 +140,8 @@ public:
         sl::ERROR_CODE zed_open_state = m_zed.open(init_parameters);
         if (zed_open_state != sl::ERROR_CODE::SUCCESS) {
             return Status(zed_open_state,
-                fmt::format("Camera Open {}.", (int)zed_open_state));
+                fmt::format(
+                    "Camera Open {}.", static_cast<int>(zed_open_state)));
         }
 
         auto status = initialize_channel_images(camera_cfg);
@@ -153,7 +155,8 @@ public:
     {
         auto err = m_zed.grab();
         if (err != sl::ERROR_CODE::SUCCESS) {
-            return Status(err, fmt::format("Camera Grab {}.", (int)err));
+            return Status(
+                err, fmt::format("Camera Grab {}.", static_cast<int>(err)));
         }
 
         for (auto& channel_image : m_channel_images) {
@@ -170,8 +173,8 @@ public:
             }
 
             if (err != sl::ERROR_CODE::SUCCESS) {
-                return Status(
-                    err, fmt::format("Camera Retrieve {}.", (int)err));
+                return Status(err,
+                    fmt::format("Camera Retrieve {}.", static_cast<int>(err)));
             }
         }
         return {};

@@ -2,9 +2,9 @@
 #include "config.hpp"
 #include "utils/counting_semaphore.hpp"
 #include "utils/status.hpp"
-#include "utils/thread_pool.hpp"
 #include "zed/zed_camera.hpp"
 #include <memory>
+#include <queue>
 #include <vector>
 
 namespace camera {

@@ -75,7 +75,8 @@ void CameraManager::producer_thread(zed::ZEDCamera* camera,
     int const total_frames = camera->get_svo_number_of_frames();
 
     while (m_running
-        && (m_frames_limit == 0 || camera->get_svo_position() < m_frames_limit)
+        && (m_frames_limit == 0
+            || static_cast<size_t>(camera->get_svo_position()) < m_frames_limit)
         && camera->get_svo_position() < total_frames) {
 
         auto status = camera->grab_images();

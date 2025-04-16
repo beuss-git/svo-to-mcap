@@ -100,10 +100,12 @@ public:
 
         std::cout << "Conversion complete!\n";
         std::cout << "Processed " << m_camera_manager.frames_processed()
-                  << " frames in " << duration.count() / 1000.0 << " seconds\n";
+                  << " frames in "
+                  << static_cast<double>(duration.count()) / 1000.0
+                  << " seconds\n";
         std::cout << "Average FPS: "
                   << static_cast<double>(m_camera_manager.frames_processed())
-                / (duration.count() / 1000.0)
+                / (static_cast<double>(duration.count()) / 1000.0)
                   << "\n";
         std::cout << "Output file: " << m_config.output.file.string() << "\n";
 

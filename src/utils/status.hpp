@@ -10,9 +10,9 @@ template<typename StatusCode, StatusCode success> struct StatusBase {
     {
     }
 
-    StatusBase(StatusCode code, std::string const& message)
-        : code(code)
-        , message(message)
+    StatusBase(StatusCode code_, std::string const& message_)
+        : code(code_)
+        , message(message_)
     {
     }
 

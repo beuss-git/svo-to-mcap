@@ -8,7 +8,6 @@
 #include <foxglove/RawImage.pb.h>
 #include <map>
 #include <mcap/writer.hpp>
-#include <sl/Camera.hpp>
 
 // https://mcap.dev/docs/python/ros2_noenv_example
 

@@ -9,9 +9,9 @@ static void zed_point_cloud_to_foxglove_msg(sl::Mat const& img,
 {
     auto* timestamp = point_cloud.mutable_timestamp();
     timestamp->set_seconds(
-        (int64_t)(svo_timestamp.getNanoseconds() / 1000000000));
+        static_cast<int64_t>(svo_timestamp.getNanoseconds() / 1000000000));
     timestamp->set_nanos(
-        (int32_t)(svo_timestamp.getNanoseconds() % 1000000000));
+        static_cast<int32_t>(svo_timestamp.getNanoseconds() % 1000000000));
 
     point_cloud.set_frame_id(frame_id);
 
@@ -31,11 +31,11 @@ static void zed_point_cloud_to_foxglove_msg(sl::Mat const& img,
 
     std::array<char const*, FIELDS_PER_POINT> const field_names
         = { "x", "y", "z", "rgb" };
-    int field_offset = 0;
+    size_t field_offset = 0;
     for (auto const& name : field_names) {
         auto* field = point_cloud.add_fields();
         field->set_name(name);
-        field->set_offset(field_offset);
+        field->set_offset(static_cast<uint32_t>(field_offset));
         field->set_type(foxglove::PackedElementField_NumericType_FLOAT32);
         field_offset += sizeof(float);
     }
@@ -45,7 +45,8 @@ static void zed_point_cloud_to_foxglove_msg(sl::Mat const& img,
     auto const data_size = FIELDS_PER_POINT * points_count * sizeof(float);
     mut_data->resize(data_size);
 
-    memcpy(mut_data->data(), (float*)img.getPtr<sl::float4>(), data_size);
+    memcpy(mut_data->data(), reinterpret_cast<float*>(img.getPtr<sl::float4>()),
+        data_size);
 }
 
 static void zed_image_to_foxglove_msg(sl::Mat const& img,
@@ -54,21 +55,21 @@ static void zed_image_to_foxglove_msg(sl::Mat const& img,
 {
     auto* timestamp = imgMsg.mutable_timestamp();
     timestamp->set_seconds(
-        (int64_t)(svo_timestamp.getNanoseconds() / 1000000000));
+        static_cast<int64_t>(svo_timestamp.getNanoseconds() / 1000000000));
     timestamp->set_nanos(
-        (int32_t)(svo_timestamp.getNanoseconds() % 1000000000));
+        static_cast<int32_t>(svo_timestamp.getNanoseconds() % 1000000000));
 
     imgMsg.set_frame_id(frameId);
 
-    imgMsg.set_width(img.getWidth());
-    imgMsg.set_height(img.getHeight());
+    imgMsg.set_width(static_cast<uint32_t>(img.getWidth()));
+    imgMsg.set_height(static_cast<uint32_t>(img.getHeight()));
 
     // int num = 1; // for endianness detection
     // imgMsg.is_bigendian = !(*(char*)&num == 1);
 
-    imgMsg.set_step(img.getStepBytes());
+    imgMsg.set_step(static_cast<uint32_t>(img.getStepBytes()));
 
-    size_t const size = imgMsg.step() * imgMsg.height();
+    size_t const size = static_cast<size_t>(imgMsg.step()) * imgMsg.height();
     auto* mut_data = imgMsg.mutable_data();
     mut_data->resize(size);
 
@@ -77,8 +78,8 @@ static void zed_image_to_foxglove_msg(sl::Mat const& img,
     switch (dataType) {
     case sl::MAT_TYPE::F32_C1:        /**< float 1 channel.*/
         imgMsg.set_encoding("32FC1"); // little endian
-        memcpy((char*)(imgMsg.mutable_data()->data()), img.getPtr<sl::float1>(),
-            size);
+        memcpy(imgMsg.mutable_data()->data(),
+            img.getPtr<sl::float1>(), size);
         break;
 
     // case sl::MAT_TYPE::F32_C2: /**< float 2 channels.*/
@@ -98,7 +99,8 @@ static void zed_image_to_foxglove_msg(sl::Mat const& img,
     //
     case sl::MAT_TYPE::U8_C1: /**< unsigned char 1 channel.*/
         imgMsg.set_encoding("mono8");
-        memcpy((char*)(&imgMsg.data()), img.getPtr<sl::uchar1>(), size);
+        memcpy(imgMsg.mutable_data()->data(),
+            img.getPtr<sl::uchar1>(), size);
         break;
     //
     // case sl::MAT_TYPE::U8_C2: /**< unsigned char 2 channels.*/
@@ -108,17 +110,17 @@ static void zed_image_to_foxglove_msg(sl::Mat const& img,
     //
     case sl::MAT_TYPE::U8_C3: /**< unsigned char 3 channels.*/
         imgMsg.set_encoding("bgr8");
-        memcpy((char*)(imgMsg.mutable_data()->data()), img.getPtr<sl::uchar3>(),
-            size);
+        memcpy(imgMsg.mutable_data()->data(),
+            reinterpret_cast<char*>(img.getPtr<sl::uchar3>()), size);
         break;
     case sl::MAT_TYPE::U8_C4: /**< unsigned char 4 channels.*/
         imgMsg.set_encoding("bgra8");
-        memcpy((char*)(imgMsg.mutable_data()->data()), img.getPtr<sl::uchar4>(),
-            size);
+        memcpy(imgMsg.mutable_data()->data(),
+            reinterpret_cast<char*>(img.getPtr<sl::uchar4>()), size);
         break;
     case sl::MAT_TYPE::U16_C1: /**< unsigned short 1 channel.*/
         imgMsg.set_encoding("16UC1");
-        memcpy((uint16_t*)(imgMsg.mutable_data()->data()),
+        memcpy(imgMsg.mutable_data()->data(),
             img.getPtr<sl::ushort1>(), size);
         break;
     default:
