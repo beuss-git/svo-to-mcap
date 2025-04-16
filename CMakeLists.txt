@@ -15,6 +15,8 @@ endif()
 include(cmake/mcap.cmake)
 include(cmake/yaml-cpp.cmake)
 include(cmake/foxglove-proto.cmake)
+include(cmake/magic_enum.cmake)
+include(cmake/fmt.cmake)
 
 find_package(ZED 3 REQUIRED)
 find_package(CUDA ${ZED_CUDA_VERSION} REQUIRED)
@@ -31,9 +33,11 @@ link_directories(${CUDA_LIBRARY_DIRS})
 
 add_executable(${PROJECT_NAME}
   src/main.cpp
-  src/mcap_impl.cpp
   src/config.cpp
-  src/ros2/Ros2ImageWriter.cpp
+  src/utils/thread_pool.cpp
+  src/camera_manager.cpp
+  src/mcap/mcap_impl.cpp
+  src/mcap/mcap_writer.cpp
   src/foxglove/BuildFileDescriptorSet.cpp
 )
 
@@ -43,5 +47,5 @@ else()
   set(ZED_LIBS ${ZED_STATIC_LIBRARIES} ${CUDA_CUDA_LIBRARY} ${CUDA_LIBRARY})
 endif()
 
-target_link_libraries(${PROJECT_NAME} ${ZED_LIBS} ${OpenCV_LIBRARIES} zstd yaml-cpp::yaml-cpp foxglove_proto_lib)
+target_link_libraries(${PROJECT_NAME} ${ZED_LIBS} ${OpenCV_LIBRARIES} zstd yaml-cpp::yaml-cpp foxglove_proto_lib magic_enum::magic_enum fmt::fmt)
 
