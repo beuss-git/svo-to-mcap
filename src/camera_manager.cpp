@@ -40,6 +40,7 @@ Status CameraManager::process_frames(std::function<Status(
     std::atomic<size_t> active_producers(m_cameras.size());
 
     std::vector<std::thread> producers;
+    producers.reserve(m_cameras.size());
     for (auto& camera : m_cameras) {
         producers.emplace_back([&, camera = camera.get()]() {
             producer_thread(camera, frame_queue, queue_mutex, queue_slots,

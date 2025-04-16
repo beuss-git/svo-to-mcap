@@ -1,13 +1,62 @@
 #include "mcap_writer.hpp"
-#include <foxglove/RawImage.pb.h>
 
 namespace mcap_writer {
-void zed_image_to_foxglove_msg(sl::Mat img, foxglove::RawImage& imgMsg,
-    std::string frameId, sl::Timestamp const svo_timestamp)
+static constexpr size_t FIELDS_PER_POINT = 4;
+
+static void zed_point_cloud_to_foxglove_msg(sl::Mat const& img,
+    foxglove::PointCloud& point_cloud, std::string const& frame_id,
+    sl::Timestamp const svo_timestamp)
 {
-    auto timestamp = imgMsg.mutable_timestamp();
-    timestamp->set_seconds(svo_timestamp.getNanoseconds() / 1000000000);
-    timestamp->set_nanos(svo_timestamp.getNanoseconds() % 1000000000);
+    auto* timestamp = point_cloud.mutable_timestamp();
+    timestamp->set_seconds(
+        (int64_t)(svo_timestamp.getNanoseconds() / 1000000000));
+    timestamp->set_nanos(
+        (int32_t)(svo_timestamp.getNanoseconds() % 1000000000));
+
+    point_cloud.set_frame_id(frame_id);
+
+    point_cloud.set_point_stride(sizeof(float) * FIELDS_PER_POINT);
+
+    // Position the pointclouds in the center of their coordinate frame.
+    auto* pose = point_cloud.mutable_pose();
+    auto* position = pose->mutable_position();
+    position->set_x(0);
+    position->set_y(0);
+    position->set_z(0);
+    auto* orientation = pose->mutable_orientation();
+    orientation->set_x(0);
+    orientation->set_y(0);
+    orientation->set_z(0);
+    orientation->set_w(1);
+
+    std::array<char const*, FIELDS_PER_POINT> const field_names
+        = { "x", "y", "z", "rgb" };
+    int field_offset = 0;
+    for (auto const& name : field_names) {
+        auto* field = point_cloud.add_fields();
+        field->set_name(name);
+        field->set_offset(field_offset);
+        field->set_type(foxglove::PackedElementField_NumericType_FLOAT32);
+        field_offset += sizeof(float);
+    }
+
+    auto* mut_data = point_cloud.mutable_data();
+    auto const points_count = img.getWidth() * img.getHeight();
+    auto const data_size = FIELDS_PER_POINT * points_count * sizeof(float);
+    mut_data->resize(data_size);
+
+    memcpy(mut_data->data(), (float*)img.getPtr<sl::float4>(), data_size);
+}
+
+static void zed_image_to_foxglove_msg(sl::Mat const& img,
+    foxglove::RawImage& imgMsg, std::string const& frameId,
+    sl::Timestamp const svo_timestamp)
+{
+    auto* timestamp = imgMsg.mutable_timestamp();
+    timestamp->set_seconds(
+        (int64_t)(svo_timestamp.getNanoseconds() / 1000000000));
+    timestamp->set_nanos(
+        (int32_t)(svo_timestamp.getNanoseconds() % 1000000000));
 
     imgMsg.set_frame_id(frameId);
 
@@ -20,7 +69,6 @@ void zed_image_to_foxglove_msg(sl::Mat img, foxglove::RawImage& imgMsg,
     imgMsg.set_step(img.getStepBytes());
 
     size_t const size = imgMsg.step() * imgMsg.height();
-    std::cout << "Image size: " << size << "\n";
     auto* mut_data = imgMsg.mutable_data();
     mut_data->resize(size);
 
@@ -80,7 +128,7 @@ void zed_image_to_foxglove_msg(sl::Mat img, foxglove::RawImage& imgMsg,
 }
 
 Status McapWriter::write_image(std::string const& camera_name,
-    zed::ChannelImage const& channel_image, sl::Timestamp const timestamp)
+    zed::ChannelImage const& channel_image, sl::Timestamp const& timestamp)
 {
     std::unique_lock<std::mutex> const lock(m_mutex);
     std::string channel_key
@@ -97,6 +145,43 @@ Status McapWriter::write_image(std::string const& camera_name,
     zed_image_to_foxglove_msg(
         channel_image.image, image_msg, channel_image.frame_id, timestamp);
     auto const payload = image_msg.SerializeAsString();
+
+    mcap::Message msg;
+    msg.channelId = m_channels[channel_key].channel.id;
+    msg.sequence = 0;
+    msg.publishTime = timestamp.getNanoseconds();
+    msg.logTime = timestamp.getNanoseconds();
+    msg.data = reinterpret_cast<std::byte const*>(payload.data());
+    msg.dataSize = payload.size();
+
+    auto res = m_writer->write(msg);
+    if (!res.ok()) {
+        // FIXME: do somewhere else
+        m_writer->terminate();
+        return Status(StatusCode::MessageWriteFailed,
+            fmt::format("Failed to write message: {}", res.message));
+    }
+    return {};
+}
+
+Status McapWriter::write_point_cloud(std::string const& camera_name,
+    zed::ChannelImage const& channel_image, sl::Timestamp const& timestamp)
+{
+    std::unique_lock<std::mutex> const lock(m_mutex);
+    std::string channel_key
+        = fmt::format("{}/{}", camera_name, channel_image.name);
+
+    if (m_channels.count(channel_key) == 0
+        || !m_channels[channel_key].registered) {
+        return Status(StatusCode::MessageWriteFailed,
+            fmt::format("Channel '{}' not registered", channel_key));
+    }
+
+    foxglove::PointCloud point_cloud_msg {};
+
+    zed_point_cloud_to_foxglove_msg(channel_image.image, point_cloud_msg,
+        channel_image.frame_id, timestamp);
+    auto const payload = point_cloud_msg.SerializeAsString();
 
     mcap::Message msg;
     msg.channelId = m_channels[channel_key].channel.id;

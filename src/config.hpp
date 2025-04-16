@@ -20,7 +20,7 @@ struct Camera {
 };
 
 struct ProcessingConfig {
-    size_t frames_limit = 200;
+    size_t frames_limit = 100;
     size_t threads = 1;
 };
 

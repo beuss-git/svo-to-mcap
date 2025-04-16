@@ -91,6 +91,30 @@ static std::string get_frame_id(
     return camera_name + "_left_camera_optical_frame";
 }
 
+static bool is_point_cloud(std::variant<sl::VIEW, sl::MEASURE> type)
+{
+    if (!std::holds_alternative<sl::MEASURE>(type)) {
+        return false;
+    }
+
+    auto const measure = std::get<sl::MEASURE>(type);
+    switch (measure) {
+    case sl::MEASURE::XYZ:
+    case sl::MEASURE::XYZRGBA:
+    case sl::MEASURE::XYZBGRA:
+    case sl::MEASURE::XYZARGB:
+    case sl::MEASURE::XYZABGR:
+    case sl::MEASURE::XYZ_RIGHT:
+    case sl::MEASURE::XYZRGBA_RIGHT:
+    case sl::MEASURE::XYZBGRA_RIGHT:
+    case sl::MEASURE::XYZARGB_RIGHT:
+    case sl::MEASURE::XYZABGR_RIGHT:
+        return true;
+    default:
+        return false;
+    }
+}
+
 struct ChannelImage {
     std::string name;
     sl::Mat image;
@@ -107,7 +131,7 @@ public:
         sl::InitParameters init_parameters {};
         init_parameters.input.setFromSVOFile(
             camera_cfg.svo_path.string().c_str());
-        init_parameters.coordinate_units = sl::UNIT::MILLIMETER;
+        init_parameters.coordinate_units = sl::UNIT::METER;
 
         std::cout << "Opening file svo file (" << camera_cfg.svo_path.string()
                   << ")...\n";

@@ -4,6 +4,7 @@
 #include "../zed/zed_camera.hpp"
 #include <fmt/format.h>
 #include <foxglove/CameraCalibration.pb.h>
+#include <foxglove/PointCloud.pb.h>
 #include <foxglove/RawImage.pb.h>
 #include <map>
 #include <mcap/writer.hpp>
@@ -66,7 +67,10 @@ public:
     }
 
     Status write_image(std::string const& camera_name,
-        zed::ChannelImage const& channel_image, sl::Timestamp const timestamp);
+        zed::ChannelImage const& channel_image, sl::Timestamp const& timestamp);
+
+    Status write_point_cloud(std::string const& camera_name,
+        zed::ChannelImage const& channel_image, sl::Timestamp const& timestamp);
 
     Status register_channel(std::string const& camera_name,
         std::string const& channel_name, std::string const& schema_name)
@@ -124,6 +128,18 @@ private:
             m_writer->addSchema(schema);
 
             m_schemas["foxglove.CameraCalibration"] = { schema, true };
+        }
+
+        // Register PointCloud schema
+        {
+            mcap::Schema schema("foxglove.PointCloud", "protobuf",
+                foxglove::BuildFileDescriptorSet(
+                    foxglove::PointCloud::descriptor())
+                    .SerializeAsString());
+
+            m_writer->addSchema(schema);
+
+            m_schemas["foxglove.PointCloud"] = { schema, true };
         }
     }
 

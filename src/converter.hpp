@@ -2,6 +2,7 @@
 #include "camera_manager.hpp"
 #include "config.hpp"
 #include "mcap/mcap_writer.hpp"
+#include "zed/zed_camera.hpp"
 #include <filesystem>
 #include <mcap/writer.hpp>
 
@@ -34,8 +35,12 @@ public:
 
         for (auto const& camera : m_camera_manager.cameras()) {
             for (auto const& channel_image : camera->channel_images()) {
-                auto status = m_mcap_writer.register_channel(
-                    camera->name(), channel_image.name, "foxglove.RawImage");
+                bool const is_point_cloud
+                    = zed::is_point_cloud(channel_image.type);
+                auto const status = m_mcap_writer.register_channel(
+                    camera->name(), channel_image.name,
+                    is_point_cloud ? "foxglove.PointCloud"
+                                   : "foxglove.RawImage");
                 if (!status.ok()) {
                     std::cerr
                         << "Failed to register channel: " << status.message
@@ -67,11 +72,21 @@ public:
         auto frame_callback = [this](std::string const& camera_name,
                                   zed::ChannelImage const& channel_image,
                                   sl::Timestamp const& timestamp) {
-            auto status = m_mcap_writer.write_image(
-                camera_name, channel_image, timestamp);
-            if (!status.ok()) {
-                std::cerr << "Failed to write image: " << status.message
-                          << "\n";
+            if (zed::is_point_cloud(channel_image.type)) {
+                auto status = m_mcap_writer.write_point_cloud(
+                    camera_name, channel_image, timestamp);
+                if (!status.ok()) {
+                    std::cerr << "Failed to write image: " << status.message
+                              << "\n";
+                }
+            } else {
+
+                auto status = m_mcap_writer.write_image(
+                    camera_name, channel_image, timestamp);
+                if (!status.ok()) {
+                    std::cerr << "Failed to write image: " << status.message
+                              << "\n";
+                }
             }
             return camera::Status();
         };
