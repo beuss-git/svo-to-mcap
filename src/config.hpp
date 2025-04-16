@@ -6,13 +6,13 @@
 #include <yaml-cpp/yaml.h>
 
 struct Camera {
-  std::string name{};
+    std::string name {};
 };
 
 struct Config {
-  std::vector<Camera> cameras{};
+    std::vector<Camera> cameras {};
 };
 namespace config {
 
-std::optional<Config> parse(const std::filesystem::path &config_path);
+std::optional<Config> parse(std::filesystem::path const& config_path);
 } // namespace config
