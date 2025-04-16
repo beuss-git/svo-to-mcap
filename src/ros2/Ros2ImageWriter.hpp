@@ -1,9 +1,9 @@
 #pragma once
 #include "../config.hpp"
-#include "schemas.hpp"
+#include <foxglove/RawImage.pb.h>
 #include <mcap/writer.hpp>
-#include <opencv2/opencv.hpp>
 #include <sl/Camera.hpp>
+#include "../foxglove/BuildFileDescriptorSet.hpp"
 
 // https://mcap.dev/docs/python/ros2_noenv_example
 
@@ -19,10 +19,10 @@ public:
         mcap::Schema const& image_schema, mcap::McapWriter& writer)
     {
         m_left_image_rect_color = mcap::Channel(
-            std::string(m_name) + "zed_node/left/image_rect_color", "cdr",
+            std::string(m_name) + "zed_node/left/image_rect_color", "protobuf",
             image_schema.id);
         m_right_image_rect_color = mcap::Channel(
-            std::string(m_name) + "zed_node/right/image_rect_color", "cdr",
+            std::string(m_name) + "zed_node/right/image_rect_color", "protobuf",
             image_schema.id);
 
         writer.addChannel(m_left_image_rect_color);
@@ -67,24 +67,23 @@ private:
         for (auto const& camera : m_config.cameras) {
             m_cameras[camera.name]
                 = std::make_unique<ZEDCamera>(std::string_view(camera.name));
-            m_cameras[camera.name]->register_topics(m_image_schema, m_writer);
+            m_cameras[camera.name]->register_topics(
+                m_raw_image_schema, m_writer);
         }
     }
 
     void register_schemas()
     {
         // https://mcap.dev/spec/registry
-        m_image_schema
-            = mcap::Schema("sensor_msgs/msg/Image", "ros2msg", ros2::schema);
-
-        m_writer.addSchema(m_image_schema);
+        m_raw_image_schema = mcap::Schema("foxglove.RawImage", "protobuf",
+            foxglove::BuildFileDescriptorSet(foxglove::RawImage::descriptor())
+                .SerializeAsString());
+        m_writer.addSchema(m_raw_image_schema);
     }
-    std::vector<std::byte> serialize_image(
-        cv::Mat const& image, std::string const& frame_id);
 
     mcap::McapWriter& m_writer;
 
-    mcap::Schema m_image_schema;
+    mcap::Schema m_raw_image_schema;
 
     std::map<std::string, std::unique_ptr<ZEDCamera>> m_cameras {};
     Config m_config;

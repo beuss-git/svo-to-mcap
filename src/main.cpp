@@ -1,7 +1,6 @@
 #include <iostream>
 
 // ZED includes
-#include <opencv2/opencv.hpp>
 #include <sl/Camera.hpp>
 
 // MCAP includes
@@ -41,7 +40,8 @@ int main()
     // const std::string svo_input_path =
     // "/home/user/bags/watercam3/test_prt.svo";
     std::string const svo_input_path
-        = "/home/user/bags/watercam3_compressed/test_prt_compressed.svo";
+        = "/home/beuss/dev/autodocking/bags/watercam3_compressed/"
+          "test_prt_compressed.svo";
 
     // Create ZED objects
     sl::Camera zed;
@@ -92,8 +92,8 @@ int main()
     // https://github.com/stereolabs/zed-ros-wrapper/blob/3af19a269b0fcdbd43029f85568cfbd42504fde4/zed_nodelets/src/zed_nodelet/src/zed_wrapper_nodelet.cpp#L2427
     // We are missing pointcloud, disparity image, depth image, objects, Path,
     // disparity left and right, confidence left and right and so on. Imu,
-    uint32_t frame_index = 0;
-    while (!g_exit_app) {
+    while (!g_exit_app && svo_position < 10) {
+        std::cout << "svoPosition: " << svo_position << "\n";
         sl::ERROR_CODE err = zed.grab();
         if (err == sl::ERROR_CODE::SUCCESS) {
             svo_position = zed.getSVOPosition();
