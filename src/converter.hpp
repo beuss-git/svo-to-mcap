@@ -61,23 +61,22 @@ public:
         //             .count());
         //
         // }
-        auto frame_callback
-            = [this](zed::ZEDCamera& camera,
-                  std::vector<zed::ChannelImage> const& channel_images,
-                  sl::Timestamp timestamp) {
-                  for (auto const& channel_image : channel_images) {
-                      auto status = m_mcap_writer.write_image(
-                          camera.name(), channel_image, timestamp);
-                      if (!status.ok()) {
-                          std::cerr
-                              << "Failed to write image: " << status.message
-                              << "\n";
-                      }
-                  }
-              };
+        //
+        // std::string const&, zed::ChannelImage const&, sl::Timestamp const&
 
-        m_camera_manager.start_processing(frame_callback);
-        m_camera_manager.wait();
+        auto frame_callback = [this](std::string const& camera_name,
+                                  zed::ChannelImage const& channel_image,
+                                  sl::Timestamp const& timestamp) {
+            auto status = m_mcap_writer.write_image(
+                camera_name, channel_image, timestamp);
+            if (!status.ok()) {
+                std::cerr << "Failed to write image: " << status.message
+                          << "\n";
+            }
+            return camera::Status();
+        };
+
+        m_camera_manager.process_frames(frame_callback);
         m_camera_manager.close_all();
 
         auto end_time = std::chrono::high_resolution_clock::now();

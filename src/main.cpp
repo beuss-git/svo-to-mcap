@@ -15,6 +15,4 @@ int main(int argc, char* argv[])
     }
 
     return converter.run();
-
-    return EXIT_SUCCESS;
 }

@@ -1,5 +1,6 @@
 #pragma once
 #include "config.hpp"
+#include "utils/counting_semaphore.hpp"
 #include "utils/status.hpp"
 #include "utils/thread_pool.hpp"
 #include "zed/zed_camera.hpp"
@@ -20,30 +21,27 @@ struct Status : StatusBase<StatusCode, StatusCode::Success> {
     using StatusBase::StatusBase;
 };
 
-using FrameCallback = std::function<void(
-    zed::ZEDCamera&, std::vector<zed::ChannelImage> const&, sl::Timestamp)>;
+struct FrameData {
+    std::string camera_name;
+    sl::Timestamp timestamp;
+    std::vector<zed::ChannelImage> channel_images;
+};
+
+using WriterCallback = std::function<Status(
+    std::string const&, zed::ChannelImage const&, sl::Timestamp const&)>;
 
 class CameraManager {
 public:
-    CameraManager(size_t thread_count = 1)
-        : m_thread_pool(thread_count)
-        , m_is_running(false)
+    CameraManager()
+        : m_running(false)
         , m_frames_processed(0)
         , m_frames_limit(0)
     {
     }
     Status init(config::Config const& config);
-    void process_frame(FrameCallback const& callback);
-    void start_processing(FrameCallback const& callback);
-
-    void stop_processing();
-
-    void wait()
-    {
-        if (m_processing_thread.joinable()) {
-            m_processing_thread.join();
-        }
-    }
+    Status process_frames(std::function<Status(
+            std::string const&, zed::ChannelImage const&, sl::Timestamp const&)>
+            writer_callback);
 
     size_t frames_processed() const { return m_frames_processed; }
 
@@ -60,10 +58,20 @@ public:
     }
 
 private:
+    void producer_thread(zed::ZEDCamera* camera,
+        std::queue<FrameData>& frame_queue, std::mutex& queue_mutex,
+        utils::CountingSemaphore& queue_slots,
+        utils::CountingSemaphore& items_available,
+        std::atomic<size_t>& active_producers);
+
+    void consumer_thread(std::queue<FrameData>& frame_queue,
+        std::mutex& queue_mutex, utils::CountingSemaphore& queue_slots,
+        utils::CountingSemaphore& items_available,
+        std::atomic<size_t>& active_producers,
+        WriterCallback const& writer_callback);
+
     std::vector<std::unique_ptr<zed::ZEDCamera>> m_cameras;
-    ThreadPool m_thread_pool;
-    std::thread m_processing_thread;
-    std::atomic_bool m_is_running;
+    std::atomic_bool m_running;
     std::atomic<size_t> m_frames_processed;
     size_t m_frames_limit;
 };
