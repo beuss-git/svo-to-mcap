@@ -44,7 +44,7 @@ public:
 
     Status init(config::Config const& config)
     {
-        mcap::McapWriterOptions options("");
+        mcap::McapWriterOptions options("protobuf");
         if (config.output.compression == "lz4") {
             options.compression = mcap::Compression::Lz4;
         } else if (config.output.compression == "zstd") {
@@ -52,6 +52,9 @@ public:
         } else {
             options.compression = mcap::Compression::None;
         }
+        options.compressionLevel = mcap::CompressionLevel::Fastest;
+        // options.noChunking = true;
+        // options.noSummaryCRC = true;
 
         auto result = m_writer->open(config.output.file.string(), options);
         if (!result.ok()) {

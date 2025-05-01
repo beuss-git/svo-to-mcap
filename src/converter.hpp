@@ -76,11 +76,14 @@ public:
                 auto status = m_mcap_writer.write_point_cloud(
                     camera_name, channel_image, timestamp);
                 if (!status.ok()) {
-                    std::cerr << "Failed to write image: " << status.message
-                              << "\n";
+                    std::cerr
+                        << "Failed to write point cloud: " << status.message
+                        << "\n";
                 }
             } else {
 
+                std::cout << "1 Channel image name: " << channel_image.name
+                          << "\n";
                 auto status = m_mcap_writer.write_image(
                     camera_name, channel_image, timestamp);
                 if (!status.ok()) {

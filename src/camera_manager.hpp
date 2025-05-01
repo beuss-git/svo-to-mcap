@@ -24,7 +24,6 @@ struct Status : StatusBase<StatusCode, StatusCode::Success> {
 struct FrameData {
     std::string camera_name;
     sl::Timestamp timestamp;
-    std::vector<zed::ChannelImage> channel_images;
 };
 
 using WriterCallback = std::function<Status(
@@ -39,9 +38,7 @@ public:
     {
     }
     Status init(config::Config const& config);
-    Status process_frames(std::function<Status(
-            std::string const&, zed::ChannelImage const&, sl::Timestamp const&)>
-            writer_callback);
+    Status process_frames(WriterCallback const& writer_callback);
 
     size_t frames_processed() const { return m_frames_processed; }
 
@@ -58,18 +55,6 @@ public:
     }
 
 private:
-    void producer_thread(zed::ZEDCamera* camera,
-        std::queue<FrameData>& frame_queue, std::mutex& queue_mutex,
-        utils::CountingSemaphore& queue_slots,
-        utils::CountingSemaphore& items_available,
-        std::atomic<size_t>& active_producers);
-
-    void consumer_thread(std::queue<FrameData>& frame_queue,
-        std::mutex& queue_mutex, utils::CountingSemaphore& queue_slots,
-        utils::CountingSemaphore& items_available,
-        std::atomic<size_t>& active_producers,
-        WriterCallback const& writer_callback);
-
     std::vector<std::unique_ptr<zed::ZEDCamera>> m_cameras;
     std::atomic_bool m_running;
     std::atomic<size_t> m_frames_processed;

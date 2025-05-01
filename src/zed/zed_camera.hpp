@@ -133,6 +133,8 @@ public:
         init_parameters.input.setFromSVOFile(
             camera_cfg.svo_path.string().c_str());
         init_parameters.coordinate_units = sl::UNIT::METER;
+        init_parameters.svo_real_time_mode = false;
+        init_parameters.depth_mode = sl::DEPTH_MODE::NEURAL;
 
         std::cout << "Opening file svo file (" << camera_cfg.svo_path.string()
                   << ")...\n";
@@ -158,6 +160,14 @@ public:
             return Status(
                 err, fmt::format("Camera Grab {}.", static_cast<int>(err)));
         }
+        auto const timestamp
+            = m_zed.getTimestamp(sl::TIME_REFERENCE::IMAGE).getMilliseconds();
+        static auto last_timestamp = timestamp;
+        std::cout << "Delta: " << timestamp - last_timestamp << "\n";
+        std::cout << "Dropped: " << m_zed.getFrameDroppedCount() << "/"
+                  << m_zed.getSVOPosition() << "\n";
+
+        last_timestamp = timestamp;
 
         for (auto& channel_image : m_channel_images) {
 
@@ -195,12 +205,36 @@ public:
         return m_zed.getCameraInformation();
     }
 
+    unsigned int num_lost_frames() { return m_zed.getFrameDroppedCount(); }
+
+    float get_fps()
+    {
+        return m_zed.getCameraInformation().camera_configuration.fps;
+    }
+
     int get_svo_number_of_frames() { return m_zed.getSVONumberOfFrames(); }
     int get_svo_position() { return m_zed.getSVOPosition(); }
     void set_svo_position(int position) { m_zed.setSVOPosition(position); }
 
+    Status grab(sl::RuntimeParameters rt_parameters = sl::RuntimeParameters())
+    {
+        auto const err = m_zed.grab(rt_parameters);
+        if (err != sl::ERROR_CODE::SUCCESS) {
+            if (err == sl::ERROR_CODE::END_OF_SVOFILE_REACHED) {
+                m_done = true;
+                return Status(err,
+                    fmt::format("End of svo file {}.", static_cast<int>(err)));
+            }
+            return Status(
+                err, fmt::format("Camera Grab {}.", static_cast<int>(err)));
+        }
+        return {};
+    }
+
+    bool done() const { return m_done; }
+
     std::string name() const { return m_name; }
-    sl::Camera const& zed() { return m_zed; }
+    sl::Camera& zed() { return m_zed; }
 
     void close() { m_zed.close(); }
 
@@ -210,7 +244,6 @@ private:
         auto const image_size
             = m_zed.getCameraInformation().camera_configuration.resolution;
         for (auto const& channel : camera_cfg.channels) {
-            // sl::Mat image(channel.resolution, sl::MAT_TYPE::U8_C4);
             if (std::holds_alternative<sl::VIEW>(channel.type)) {
                 auto view = std::get<sl::VIEW>(channel.type);
                 auto mat_type = get_mat_type(view);
@@ -221,6 +254,7 @@ private:
                             mat_type),
                         view, get_frame_id(camera_cfg.name, view) });
                 } else {
+                    std::cout << "Channel name: " << channel.name << "\n";
                     m_channel_images.push_back(ChannelImage { channel.name,
                         sl::Mat(image_size, mat_type), view,
                         get_frame_id(camera_cfg.name, view) });
@@ -230,6 +264,7 @@ private:
                 auto measure = std::get<sl::MEASURE>(channel.type);
                 auto mat_type = get_mat_type(measure);
 
+                std::cout << "Channel name: " << channel.name << "\n";
                 m_channel_images.push_back(
                     ChannelImage { channel.name, sl::Mat(image_size, mat_type),
                         measure, get_frame_id(camera_cfg.name, measure) });
@@ -241,5 +276,6 @@ private:
     std::string m_name;
     sl::Camera m_zed;
     std::vector<ChannelImage> m_channel_images;
+    bool m_done = false;
 };
 }

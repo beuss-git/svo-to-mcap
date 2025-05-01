@@ -16,155 +16,81 @@ Status CameraManager::init(config::Config const& config)
                     camera_cfg.name, status.message));
         }
 
+        for (auto const& channel_image : camera->channel_images()) {
+            std::cout << "-1 channel image name: " << channel_image.name
+                      << "\n";
+        }
+
         m_cameras.push_back(std::move(camera));
     }
 
     return {};
 }
 
-Status CameraManager::process_frames(std::function<Status(
-        std::string const&, zed::ChannelImage const&, sl::Timestamp const&)>
-        writer_callback)
+Status CameraManager::process_frames(WriterCallback const& writer_callback)
 {
     m_running = true;
     m_frames_processed = 0;
 
-    size_t constexpr max_queue_size = 30;
+    std::cout << "Camera length: " << m_cameras.size() << "\n";
+    auto& camera = m_cameras[0];
 
-    utils::CountingSemaphore queue_slots(max_queue_size);
-    utils::CountingSemaphore items_available(0);
-
-    std::queue<FrameData> frame_queue;
-    std::mutex queue_mutex;
-
-    std::atomic<size_t> active_producers(m_cameras.size());
-
-    std::vector<std::thread> producers;
-    producers.reserve(m_cameras.size());
-    for (auto& camera : m_cameras) {
-        producers.emplace_back([&, camera = camera.get()]() {
-            producer_thread(camera, frame_queue, queue_mutex, queue_slots,
-                items_available, active_producers);
-        });
-    }
-
-    std::thread consumer([&]() {
-        consumer_thread(frame_queue, queue_mutex, queue_slots, items_available,
-            active_producers, writer_callback);
-    });
-
-    for (auto& thread : producers) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
-
-    if (consumer.joinable()) {
-        consumer.join();
-    }
-
-    return Status();
-}
-
-void CameraManager::producer_thread(zed::ZEDCamera* camera,
-    std::queue<FrameData>& frame_queue, std::mutex& queue_mutex,
-    utils::CountingSemaphore& queue_slots,
-    utils::CountingSemaphore& items_available,
-    std::atomic<size_t>& active_producers)
-{
     int const total_frames = camera->get_svo_number_of_frames();
-
-    while (m_running
+    while (m_running && !camera->done()
         && (m_frames_limit == 0
             || static_cast<size_t>(camera->get_svo_position()) < m_frames_limit)
         && camera->get_svo_position() < total_frames) {
-
-        auto status = camera->grab_images();
-        if (status.ok()) {
-            queue_slots.acquire();
-
-            if (!m_running) {
-                queue_slots.release();
-                break;
-            }
-
-            auto timestamp = camera->timestamp(sl::TIME_REFERENCE::IMAGE);
-
-            FrameData frame;
-            frame.camera_name = camera->name();
-            frame.timestamp = timestamp;
-            frame.channel_images = camera->channel_images();
-
-            {
-                std::lock_guard<std::mutex> const lock(queue_mutex);
-                frame_queue.push(std::move(frame));
-            }
-
-            items_available.release();
-        } else if (status.code == sl::ERROR_CODE::END_OF_SVOFILE_REACHED) {
-            std::cout << "End of SVO reached for camera '" << camera->name()
-                      << "'\n";
-            break;
-        } else {
-            std::cerr << "Failed to grab images from camera '" << camera->name()
-                      << "': " << status.message << "\n";
-            break;
-        }
-    }
-
-    if (--active_producers == 0) {
-        items_available.release();
-    }
-}
-
-void CameraManager::consumer_thread(std::queue<FrameData>& frame_queue,
-    std::mutex& queue_mutex, utils::CountingSemaphore& queue_slots,
-    utils::CountingSemaphore& items_available,
-    std::atomic<size_t>& active_producers,
-    WriterCallback const& writer_callback)
-{
-    while (m_running) {
-        items_available.acquire();
 
         if (!m_running) {
             break;
         }
 
-        FrameData frame;
-        bool has_frame = false;
-        bool producers_finished = false;
-
-        {
-            std::lock_guard<std::mutex> const lock(queue_mutex);
-            if (!frame_queue.empty()) {
-                frame = std::move(frame_queue.front());
-                frame_queue.pop();
-                has_frame = true;
-            }
-            producers_finished = (active_producers == 0);
+        auto status = camera->grab();
+        if (!status.ok()) {
+            continue;
         }
 
-        if (has_frame) {
-            queue_slots.release();
+        auto timestamp = camera->timestamp(sl::TIME_REFERENCE::IMAGE);
 
-            for (auto const& image : frame.channel_images) {
-                auto status = writer_callback(
-                    frame.camera_name, image, frame.timestamp);
-                if (!status.ok()) {
-                    std::cerr << "Failed to write image: " << status.message
-                              << "\n";
-                }
+        for (auto const& channel : camera->channel_images()) {
+            zed::ChannelImage safe;
+            safe.name = channel.name;
+            safe.type = channel.type;
+            safe.frame_id = channel.frame_id;
+            if (std::holds_alternative<sl::VIEW>(channel.type)) {
+                sl::Mat temp;
+                camera->zed().retrieveImage(
+                    temp, std::get<sl::VIEW>(channel.type));
+                safe.image.clone(temp); // NOTE: Deep copy needed because zed
+                                        // overwrites the matrix buffer before
+                                        // we write it into the capture file.
+            } else if (std::holds_alternative<sl::MEASURE>(channel.type)) {
+                sl::Mat temp;
+                camera->zed().retrieveMeasure(
+                    temp, std::get<sl::MEASURE>(channel.type));
+                safe.image.clone(temp);
             }
 
-            m_frames_processed++;
-
-            if (m_frames_processed % 10 == 0) {
-                std::cout << "Processed " << m_frames_processed << " frames\n";
+            auto res = writer_callback(camera->name(), safe, timestamp);
+            if (!res.ok()) {
+                std::cerr << "Failed to write image: " << res.message << "\n";
             }
-        } else if (producers_finished) {
-            break;
         }
+        m_frames_processed++;
+        std::cout << m_frames_processed << " frames processed\n";
+
+        // } else if (status.code == sl::ERROR_CODE::END_OF_SVOFILE_REACHED) {
+        //     std::cout << "End of SVO reached for camera '" << camera->name()
+        //               << "'\n";
+        //     break;
+        // } else {
+        //     std::cerr << "Failed to grab images from camera '" <<
+        //     camera->name()
+        //               << "': " << status.message << "\n";
+        //     break;
+        // }
     }
-}
 
+    return Status();
+}
 }

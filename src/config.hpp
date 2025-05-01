@@ -20,13 +20,13 @@ struct Camera {
 };
 
 struct ProcessingConfig {
-    size_t frames_limit = 1000;
+    size_t frames_limit = 500;
     size_t threads = 1;
 };
 
 struct OutputConfig {
-    std::filesystem::path file = "output2.mcap";
-    std::string compression = "lz4";
+    std::filesystem::path file = "output_new_current.mcap";
+    std::string compression = "zstd";
 };
 
 struct Config {
