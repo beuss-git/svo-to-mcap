@@ -83,6 +83,29 @@ Status parse(Config& config, std::filesystem::path const& config_path)
         config.cameras.push_back(camera);
     }
 
+    { // parse output
+        auto const output = yconfig["output"];
+        if (!output) {
+            return Status(StatusCode::ParseError,
+                fmt::format("No output section found in config file: {}",
+                    config_path.string()));
+        }
+
+        auto const output_file = output["file"];
+        if (!output_file) {
+            return Status(StatusCode::ParseError,
+                fmt::format("No output file found in config file: {}",
+                    config_path.string()));
+        }
+
+        config.output.file = output_file.as<std::string>();
+
+        auto const output_compression = output["compression"];
+        if (output_compression) {
+            config.output.compression = output_compression.as<std::string>();
+        }
+    }
+
     return {};
 }
 } // namespace config
