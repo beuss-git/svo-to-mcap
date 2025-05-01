@@ -3,6 +3,7 @@ project(svo_to_mcap)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -65,7 +66,7 @@ include(cmake/foxglove-proto.cmake)
 include(cmake/magic_enum.cmake)
 include(cmake/fmt.cmake)
 
-find_package(ZED 3 REQUIRED)
+find_package(ZED 5 REQUIRED)
 find_package(CUDA ${ZED_CUDA_VERSION} REQUIRED)
 
 
