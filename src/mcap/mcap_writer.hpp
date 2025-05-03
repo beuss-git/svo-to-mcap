@@ -58,9 +58,9 @@ public:
 
         auto result = m_writer->open(config.output.file.string(), options);
         if (!result.ok()) {
-            return Status(StatusCode::WriterOpenFailed,
+            return { StatusCode::WriterOpenFailed,
                 fmt::format("Failed to open file {}: {}",
-                    config.output.file.string(), result.message));
+                    config.output.file.string(), result.message) };
         }
 
         register_schemas();
@@ -82,24 +82,25 @@ public:
         std::string const channel_key
             = fmt::format("{}/{}", camera_name, channel_name);
 
-        if (m_channels.count(channel_key) > 0
+        if (m_channels.contains(channel_key)
             && m_channels[channel_key].registered) {
             return {};
         }
 
-        if (m_schemas.count(schema_name) == 0
+        if (!m_schemas.contains(schema_name)
             || !m_schemas[schema_name].registered) {
-            return Status(StatusCode::ChannelRegistrationFailed,
-                fmt::format("Schema '{}' not registered", schema_name));
+            return { StatusCode::ChannelRegistrationFailed,
+                fmt::format("Schema '{}' not registered", schema_name) };
         }
 
         mcap::Channel channel(
             channel_key, "protobuf", m_schemas[schema_name].schema.id);
         m_writer->addChannel(channel);
         std::cout << fmt::format("Registered channel '{}'", channel_key)
-                  << std::endl;
+                  << '\n';
 
-        m_channels[channel_key] = { channel, true, 0 };
+        m_channels[channel_key]
+            = { .channel = channel, .registered = true, .sequence = 0 };
 
         return {};
     }
@@ -117,7 +118,8 @@ private:
 
             m_writer->addSchema(schema);
 
-            m_schemas["foxglove.RawImage"] = { schema, true };
+            m_schemas["foxglove.RawImage"]
+                = { .schema = schema, .registered = true };
         }
 
         // Register CameraCalibration schema
@@ -129,7 +131,8 @@ private:
 
             m_writer->addSchema(schema);
 
-            m_schemas["foxglove.CameraCalibration"] = { schema, true };
+            m_schemas["foxglove.CameraCalibration"]
+                = { .schema = schema, .registered = true };
         }
 
         // Register PointCloud schema
@@ -141,7 +144,8 @@ private:
 
             m_writer->addSchema(schema);
 
-            m_schemas["foxglove.PointCloud"] = { schema, true };
+            m_schemas["foxglove.PointCloud"]
+                = { .schema = schema, .registered = true };
         }
     }
 
