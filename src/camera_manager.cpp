@@ -16,11 +16,6 @@ Status CameraManager::init(config::Config const& config)
                     camera_cfg.name, status.message) };
         }
 
-        for (auto const& channel_image : camera->channel_images()) {
-            std::cout << "-1 channel image name: " << channel_image.name
-                      << "\n";
-        }
-
         m_cameras.push_back(std::move(camera));
     }
 
@@ -58,17 +53,18 @@ Status CameraManager::process_frames(WriterCallback const& writer_callback)
             safe.type = channel.type;
             safe.frame_id = channel.frame_id;
             if (std::holds_alternative<sl::VIEW>(channel.type)) {
-                sl::Mat temp;
+                // sl::Mat temp;
                 camera->zed().retrieveImage(
-                    temp, std::get<sl::VIEW>(channel.type));
-                safe.image.clone(temp); // NOTE: Deep copy needed because zed
-                                        // overwrites the matrix buffer before
-                                        // we write it into the capture file.
+                    safe.image, std::get<sl::VIEW>(channel.type));
+                // safe.image.clone(temp); // NOTE: Deep copy needed because zed
+                //                         // overwrites the matrix buffer
+                //                         before
+                //                         // we write it into the capture file.
             } else if (std::holds_alternative<sl::MEASURE>(channel.type)) {
-                sl::Mat temp;
+                // sl::Mat temp;
                 camera->zed().retrieveMeasure(
-                    temp, std::get<sl::MEASURE>(channel.type));
-                safe.image.clone(temp);
+                    safe.image, std::get<sl::MEASURE>(channel.type));
+                // safe.image.clone(temp);
             }
 
             auto res = writer_callback(camera->name(), safe, timestamp);

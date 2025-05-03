@@ -2,12 +2,14 @@
 #include "../config.hpp"
 #include "../foxglove/BuildFileDescriptorSet.hpp"
 #include "../zed/zed_camera.hpp"
+#include <condition_variable>
 #include <fmt/format.h>
 #include <foxglove/CameraCalibration.pb.h>
 #include <foxglove/PointCloud.pb.h>
 #include <foxglove/RawImage.pb.h>
 #include <map>
 #include <mcap/writer.hpp>
+#include <queue>
 
 // https://mcap.dev/docs/python/ros2_noenv_example
 
@@ -18,6 +20,7 @@ enum class StatusCode : uint8_t {
     WriterOpenFailed,
     ChannelRegistrationFailed,
     MessageWriteFailed,
+    WriterShutdown,
 };
 
 struct Status : StatusBase<StatusCode, StatusCode::Success> {
@@ -41,6 +44,7 @@ public:
         : m_writer(std::make_unique<mcap::McapWriter>())
     {
     }
+    ~McapWriter() { }
 
     Status init(config::Config const& config)
     {
@@ -53,6 +57,7 @@ public:
             options.compression = mcap::Compression::None;
         }
         options.compressionLevel = mcap::CompressionLevel::Fastest;
+        options.profile = "fastwrite";
         // options.noChunking = true;
         // options.noSummaryCRC = true;
 
@@ -65,7 +70,16 @@ public:
 
         register_schemas();
 
+        m_worker_thread = std::thread([this]() { worker_thread(); });
+
         return {};
+    }
+
+    void shutdown()
+    {
+        m_done = true;
+        m_cv.notify_all();
+        m_worker_thread.join();
     }
 
     Status write_image(std::string const& camera_name,
@@ -73,6 +87,14 @@ public:
 
     Status write_point_cloud(std::string const& camera_name,
         zed::ChannelImage const& channel_image, sl::Timestamp const& timestamp);
+
+    struct MessageData {
+        mcap::ChannelId channel_id;
+        mcap::Timestamp timestamp;
+        std::string payload;
+    };
+
+    Status queue_message(MessageData const& message);
 
     Status register_channel(std::string const& camera_name,
         std::string const& channel_name, std::string const& schema_name)
@@ -149,10 +171,18 @@ private:
         }
     }
 
+    void worker_thread();
+
     std::unique_ptr<mcap::McapWriter> m_writer;
     std::map<std::string, SchemaInfo> m_schemas;
     std::map<std::string, ChannelInfo> m_channels;
     std::mutex m_mutex;
+
+    std::queue<MessageData> m_messages;
+    std::thread m_worker_thread;
+    std::atomic_bool m_done = false;
+    std::condition_variable m_cv;
+    size_t m_max_queue_size = 400;
 };
 
 }

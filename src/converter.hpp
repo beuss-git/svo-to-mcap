@@ -69,7 +69,9 @@ public:
         //
         // std::string const&, zed::ChannelImage const&, sl::Timestamp const&
 
-        auto frame_callback = [this](std::string const& camera_name,
+        size_t message_count = 0;
+        auto frame_callback = [this, &message_count](
+                                  std::string const& camera_name,
                                   zed::ChannelImage const& channel_image,
                                   sl::Timestamp const& timestamp) {
             if (zed::is_point_cloud(channel_image.type)) {
@@ -91,11 +93,14 @@ public:
                               << "\n";
                 }
             }
+            std::cout << "Messages written: " << ++message_count << "\n";
             return camera::Status();
         };
 
         m_camera_manager.process_frames(frame_callback);
         m_camera_manager.close_all();
+
+        m_mcap_writer.shutdown();
 
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(

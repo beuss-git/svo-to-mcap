@@ -149,28 +149,17 @@ Status McapWriter::write_image(std::string const& camera_name,
         channel_image.image, image_msg, channel_image.frame_id, timestamp);
     auto const payload = image_msg.SerializeAsString();
 
-    mcap::Message msg;
-    msg.channelId = m_channels[channel_key].channel.id;
-    msg.sequence = 0;
-    msg.logTime = timestamp.getNanoseconds();
-    msg.publishTime = msg.logTime;
-    msg.data = reinterpret_cast<std::byte const*>(payload.data());
-    msg.dataSize = payload.size();
+    queue_message(
+        MessageData { .channel_id = m_channels[channel_key].channel.id,
+            .timestamp = timestamp.getNanoseconds(),
+            .payload = payload });
 
-    auto res = m_writer->write(msg);
-    if (!res.ok()) {
-        // FIXME: do somewhere else
-        m_writer->terminate();
-        return { StatusCode::MessageWriteFailed,
-            fmt::format("Failed to write message: {}", res.message) };
-    }
     return {};
 }
 
 Status McapWriter::write_point_cloud(std::string const& camera_name,
     zed::ChannelImage const& channel_image, sl::Timestamp const& timestamp)
 {
-    std::unique_lock<std::mutex> const lock(m_mutex);
     std::string channel_key
         = fmt::format("{}/{}", camera_name, channel_image.name);
 
@@ -186,21 +175,67 @@ Status McapWriter::write_point_cloud(std::string const& camera_name,
         channel_image.frame_id, timestamp);
     auto const payload = point_cloud_msg.SerializeAsString();
 
-    mcap::Message msg;
-    msg.channelId = m_channels[channel_key].channel.id;
-    msg.sequence = 0;
-    msg.logTime = timestamp.getNanoseconds();
-    msg.publishTime = msg.logTime;
-    msg.data = reinterpret_cast<std::byte const*>(payload.data());
-    msg.dataSize = payload.size();
-
-    auto res = m_writer->write(msg);
-    if (!res.ok()) {
-        // FIXME: do somewhere else
-        m_writer->terminate();
-        return { StatusCode::MessageWriteFailed,
-            fmt::format("Failed to write message: {}", res.message) };
-    }
+    queue_message(
+        MessageData { .channel_id = m_channels[channel_key].channel.id,
+            .timestamp = timestamp.getNanoseconds(),
+            .payload = payload });
     return {};
+}
+
+Status McapWriter::queue_message(MessageData const& message)
+{
+    std::unique_lock lock(m_mutex);
+    if (m_messages.size() >= m_max_queue_size) {
+        std::cerr << "Queue full, waiting for space...\n";
+    }
+    m_cv.wait(lock,
+        [this]() { return m_messages.size() < m_max_queue_size || m_done; });
+
+    if (m_done) {
+        return { StatusCode::WriterShutdown,
+            "McapWriter is done, cannot queue more messages." };
+    }
+
+    m_messages.push(message);
+    m_cv.notify_one(); // wake up the consumer
+
+    return {};
+}
+
+void McapWriter::worker_thread()
+{
+    size_t messages_written = 0;
+    while (true) {
+        std::unique_lock lock(m_mutex);
+        m_cv.wait(lock, [this]() { return !m_messages.empty() || m_done; });
+        if (m_done && m_messages.empty()) {
+            break;
+        }
+        assert(!m_messages.empty());
+
+        MessageData const job = std::move(m_messages.front());
+        m_messages.pop();
+
+        m_cv.notify_one();
+        lock.unlock();
+
+        mcap::Message msg;
+        msg.channelId = job.channel_id;
+        msg.sequence = 0;
+        msg.logTime = job.timestamp;
+        msg.publishTime = msg.logTime;
+        msg.data = reinterpret_cast<std::byte const*>(job.payload.data());
+        msg.dataSize = job.payload.size();
+
+        auto const res = m_writer->write(msg);
+
+        if (!res.ok()) {
+            std::cerr << "Failed to write message: " << res.message << "\n";
+            m_writer->terminate();
+            break;
+        }
+        std::cout << "Wrote message: " << ++messages_written << "\n";
+    }
+    std::cout << "Worker thread done.\n";
 }
 }
