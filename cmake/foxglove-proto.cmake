@@ -28,6 +28,8 @@ target_include_directories(foxglove_proto_lib SYSTEM PUBLIC ${CMAKE_CURRENT_BINA
 # downgraded back to warnings for all targets that depends on them.
 if (MSVC)
   target_compile_options(foxglove_proto_lib PUBLIC /wd4100 /wd4267 /wd4244)
-else()
+elseif(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
+  target_compile_options(foxglove_proto_lib PUBLIC -Wno-error=unused-parameter)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_compile_options(foxglove_proto_lib PUBLIC -Wno-error=unused-parameter -Wno-error=useless-cast)
 endif()

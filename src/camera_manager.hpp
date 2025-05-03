@@ -1,10 +1,8 @@
 #pragma once
 #include "config.hpp"
-#include "utils/counting_semaphore.hpp"
 #include "utils/status.hpp"
 #include "zed/zed_camera.hpp"
 #include <memory>
-#include <queue>
 #include <vector>
 
 namespace camera {
@@ -34,15 +32,15 @@ public:
     CameraManager()
         : m_running(false)
         , m_frames_processed(0)
-        , m_frames_limit(0)
     {
     }
     Status init(config::Config const& config);
     Status process_frames(WriterCallback const& writer_callback);
 
-    size_t frames_processed() const { return m_frames_processed; }
+    [[nodiscard]] size_t frames_processed() const { return m_frames_processed; }
 
-    std::vector<std::unique_ptr<zed::ZEDCamera>> const& cameras() const
+    [[nodiscard]] std::vector<std::unique_ptr<zed::ZEDCamera>> const&
+    cameras() const
     {
         return m_cameras;
     }
@@ -58,6 +56,6 @@ private:
     std::vector<std::unique_ptr<zed::ZEDCamera>> m_cameras;
     std::atomic_bool m_running;
     std::atomic<size_t> m_frames_processed;
-    size_t m_frames_limit;
+    size_t m_frames_limit {};
 };
 }

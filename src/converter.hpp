@@ -117,7 +117,7 @@ public:
 
 private:
     config::Config m_config {};
-    camera::CameraManager m_camera_manager {};
+    camera::CameraManager m_camera_manager;
 
-    mcap_writer::McapWriter m_mcap_writer {};
+    mcap_writer::McapWriter m_mcap_writer;
 };

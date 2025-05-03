@@ -1,11 +1,13 @@
 #include "converter.hpp"
 #include <iostream>
+#include <span>
 
-int main(int argc, char* argv[])
+int main(int argc, char const* argv[])
 {
     std::string config_path = "config.yaml";
-    if (argc > 1) {
-        config_path = argv[1];
+    std::span<char const*> const args(argv, static_cast<size_t>(argc));
+    if (args.size() > 1) {
+        config_path = args[1];
     }
 
     Converter converter;

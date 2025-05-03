@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <utility>
 
 template<typename StatusCode, StatusCode success> struct StatusBase {
     StatusCode code;
@@ -10,11 +11,11 @@ template<typename StatusCode, StatusCode success> struct StatusBase {
     {
     }
 
-    StatusBase(StatusCode code_, std::string const& message_)
+    StatusBase(StatusCode code_, std::string message_)
         : code(code_)
-        , message(message_)
+        , message(std::move(message_))
     {
     }
 
-    bool ok() const { return code == success; }
+    [[nodiscard]] bool ok() const { return code == success; }
 };

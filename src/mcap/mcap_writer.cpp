@@ -133,16 +133,14 @@ static void zed_image_to_foxglove_msg(sl::Mat const& img,
 Status McapWriter::write_image(std::string const& camera_name,
     zed::ChannelImage const& channel_image, sl::Timestamp const& timestamp)
 {
-    // std::unique_lock<std::mutex> const lock(m_mutex);
-
     std::cout << "Channel image name: " << channel_image.name << "\n";
     std::string channel_key
         = fmt::format("{}/{}", camera_name, channel_image.name);
 
-    if (m_channels.count(channel_key) == 0
+    if (!m_channels.contains(channel_key)
         || !m_channels[channel_key].registered) {
-        return Status(StatusCode::MessageWriteFailed,
-            fmt::format("Channel '{}' not registered", channel_key));
+        return { StatusCode::MessageWriteFailed,
+            fmt::format("Channel '{}' not registered", channel_key) };
     }
 
     foxglove::RawImage image_msg;
@@ -163,8 +161,8 @@ Status McapWriter::write_image(std::string const& camera_name,
     if (!res.ok()) {
         // FIXME: do somewhere else
         m_writer->terminate();
-        return Status(StatusCode::MessageWriteFailed,
-            fmt::format("Failed to write message: {}", res.message));
+        return { StatusCode::MessageWriteFailed,
+            fmt::format("Failed to write message: {}", res.message) };
     }
     return {};
 }
@@ -176,10 +174,10 @@ Status McapWriter::write_point_cloud(std::string const& camera_name,
     std::string channel_key
         = fmt::format("{}/{}", camera_name, channel_image.name);
 
-    if (m_channels.count(channel_key) == 0
+    if (!m_channels.contains(channel_key)
         || !m_channels[channel_key].registered) {
-        return Status(StatusCode::MessageWriteFailed,
-            fmt::format("Channel '{}' not registered", channel_key));
+        return { StatusCode::MessageWriteFailed,
+            fmt::format("Channel '{}' not registered", channel_key) };
     }
 
     foxglove::PointCloud point_cloud_msg;
@@ -200,8 +198,8 @@ Status McapWriter::write_point_cloud(std::string const& camera_name,
     if (!res.ok()) {
         // FIXME: do somewhere else
         m_writer->terminate();
-        return Status(StatusCode::MessageWriteFailed,
-            fmt::format("Failed to write message: {}", res.message));
+        return { StatusCode::MessageWriteFailed,
+            fmt::format("Failed to write message: {}", res.message) };
     }
     return {};
 }

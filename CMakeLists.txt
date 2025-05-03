@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 project(svo_to_mcap)
+#set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-checks=*")
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 
@@ -85,12 +86,11 @@ target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
   ${ZED_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${MCAP_INCLUDE_DIR}
+  ${YAML_CPP_INCLUDE_DIR}
 )
 
 target_compile_options(${PROJECT_NAME} PRIVATE -fdiagnostics-color=always)
 
-#link_directories(${ZED_LIBRARY_DIR})
-link_directories(${CUDA_LIBRARY_DIRS})
 
 if (LINK_SHARED_ZED)
   set(ZED_LIBS ${ZED_LIBRARIES} ${CUDA_CUDA_LIBRARY} ${CUDA_CUDART_LIBRARY})

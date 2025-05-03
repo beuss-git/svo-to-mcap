@@ -11,9 +11,9 @@ Status CameraManager::init(config::Config const& config)
 
         auto status = camera->init(camera_cfg);
         if (!status.ok()) {
-            return Status(StatusCode::InitializationFailed,
+            return { StatusCode::InitializationFailed,
                 fmt::format("Failed to initialize camera '{}': {}",
-                    camera_cfg.name, status.message));
+                    camera_cfg.name, status.message) };
         }
 
         for (auto const& channel_image : camera->channel_images()) {
@@ -91,6 +91,6 @@ Status CameraManager::process_frames(WriterCallback const& writer_callback)
         // }
     }
 
-    return Status();
+    return {};
 }
 }

@@ -4,30 +4,30 @@
 
 namespace config {
 
-Status parse_channels(Camera& camera, const YAML::Node& ychannels)
+static Status parse_channels(Camera& camera, const YAML::Node& ychannels)
 {
     for (auto ychannel : ychannels) {
         Channel channel {};
         try {
             channel.name = ychannel["name"].as<std::string>();
         } catch (const YAML::Exception& e) {
-            return Status(StatusCode::ParseError,
+            return { StatusCode::ParseError,
                 fmt::format("Invalid channel name for camera {}: {}",
-                    camera.name, e.what()));
+                    camera.name, e.what()) };
         }
 
-        std::string const type_str = ychannel["type"].as<std::string>();
-        if (type_str.find("VIEW") == 0) {
+        auto const type_str = ychannel["type"].as<std::string>();
+        if (type_str.starts_with("VIEW")) {
             std::string_view const view_type
                 = std::string_view(type_str).substr(6);
             auto maybe_view = magic_enum::enum_cast<sl::VIEW>(view_type);
             if (maybe_view.has_value()) {
                 channel.type = maybe_view.value();
             } else {
-                return Status(StatusCode::InvalidType,
-                    fmt::format("View type {} not found.", view_type));
+                return { StatusCode::InvalidType,
+                    fmt::format("View type {} not found.", view_type) };
             }
-        } else if (type_str.find("MEASURE") == 0) {
+        } else if (type_str.starts_with("MEASURE")) {
             std::string_view const measure_type
                 = std::string_view(type_str).substr(9);
             auto maybe_measure
@@ -35,12 +35,12 @@ Status parse_channels(Camera& camera, const YAML::Node& ychannels)
             if (maybe_measure.has_value()) {
                 channel.type = maybe_measure.value();
             } else {
-                return Status(StatusCode::InvalidType,
-                    fmt::format("Measure type {} not found.", measure_type));
+                return { StatusCode::InvalidType,
+                    fmt::format("Measure type {} not found.", measure_type) };
             }
         } else {
-            return Status(StatusCode::InvalidType,
-                fmt::format("Invalid type {}.", type_str));
+            return { StatusCode::InvalidType,
+                fmt::format("Invalid type {}.", type_str) };
         }
 
         camera.channels.push_back(channel);
@@ -52,9 +52,9 @@ Status parse(Config& config, std::filesystem::path const& config_path)
 {
     YAML::Node yconfig = YAML::LoadFile(config_path.string());
     if (!yconfig["cameras"]) {
-        return Status(StatusCode::ParseError,
+        return { StatusCode::ParseError,
             fmt::format(
-                "No cameras found in config file: {}", config_path.string()));
+                "No cameras found in config file: {}", config_path.string()) };
     }
 
     auto const cameras = yconfig["cameras"];
@@ -63,16 +63,16 @@ Status parse(Config& config, std::filesystem::path const& config_path)
         try {
             camera.name = ycam["name"].as<std::string>();
         } catch (const YAML::Exception& e) {
-            return Status(StatusCode::ParseError,
+            return { StatusCode::ParseError,
                 fmt::format(
-                    "Invalid name for camera {}: {}", camera.name, e.what()));
+                    "Invalid name for camera {}: {}", camera.name, e.what()) };
         }
         try {
             camera.svo_path = ycam["svo_file"].as<std::string>();
         } catch (const YAML::Exception& e) {
-            return Status(StatusCode::ParseError,
+            return { StatusCode::ParseError,
                 fmt::format("Invalid SVO path for camera {}: {}", camera.name,
-                    e.what()));
+                    e.what()) };
         }
 
         auto const status = parse_channels(camera, ycam["channels"]);
@@ -86,16 +86,16 @@ Status parse(Config& config, std::filesystem::path const& config_path)
     { // parse output
         auto const output = yconfig["output"];
         if (!output) {
-            return Status(StatusCode::ParseError,
+            return { StatusCode::ParseError,
                 fmt::format("No output section found in config file: {}",
-                    config_path.string()));
+                    config_path.string()) };
         }
 
         auto const output_file = output["file"];
         if (!output_file) {
-            return Status(StatusCode::ParseError,
+            return { StatusCode::ParseError,
                 fmt::format("No output file found in config file: {}",
-                    config_path.string()));
+                    config_path.string()) };
         }
 
         config.output.file = output_file.as<std::string>();

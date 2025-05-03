@@ -4,6 +4,7 @@
 # bugprone-easily-swappable-parameters: This warning is loud with no clear advice on how to fix the potential problem
 Checks: >
   -*,
+  clang-analyzer-deadcode.DeadStores,
   bugprone-*,
   cert-*,
   clang-analyzer-*,
@@ -12,6 +13,9 @@ Checks: >
   performance-*,
   portability-*,
   readability-*,
+  modernize-*,
+  cppcoreguidelines-*,
+  -modernize-use-trailing-return-type,
   -bugprone-easily-swappable-parameters,
   -bugprone-macro-parentheses,
   -bugprone-reserved-identifier,-cert-dcl37-c,-cert-dcl51-cpp,

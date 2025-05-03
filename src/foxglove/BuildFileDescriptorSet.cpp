@@ -1,6 +1,7 @@
 #include "BuildFileDescriptorSet.hpp"
 
 #include <queue>
+#include <string>
 #include <unordered_set>
 
 namespace foxglove {

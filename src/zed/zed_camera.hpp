@@ -233,7 +233,7 @@ public:
 
     bool done() const { return m_done; }
 
-    std::string name() const { return m_name; }
+    std::string const& name() const { return m_name; }
     sl::Camera& zed() { return m_zed; }
 
     void close() { m_zed.close(); }
