@@ -24,8 +24,8 @@ struct FrameData {
     sl::Timestamp timestamp;
 };
 
-using WriterCallback = std::function<Status(
-    std::string const&, zed::ChannelImage const&, sl::Timestamp const&)>;
+using WriterCallback = std::function<Status(zed::ZEDCamera& camera,
+    zed::ChannelImage const& image, sl::Timestamp const& timestamp)>;
 
 class CameraManager {
 public:

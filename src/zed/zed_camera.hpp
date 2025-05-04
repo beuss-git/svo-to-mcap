@@ -69,8 +69,8 @@ static sl::MAT_TYPE get_mat_type(sl::MEASURE measure)
     }
 }
 
-static std::string get_frame_id(
-    std::string const& camera_name, std::variant<sl::VIEW, sl::MEASURE> type)
+static std::string get_type_name(
+    std::variant<sl::VIEW, sl::MEASURE> const& type)
 {
     std::string name;
     if (std::holds_alternative<sl::VIEW>(type)) {
@@ -80,16 +80,46 @@ static std::string get_frame_id(
     } else {
         assert(false);
     }
+    return name;
+}
 
+static std::string get_frame_id(std::string const& camera_name,
+    std::variant<sl::VIEW, sl::MEASURE> const& type)
+{
     // https://github.com/stereolabs/zed-ros-wrapper/blob/3af19a269b0fcdbd43029f85568cfbd42504fde4/zed_nodelets/src/zed_nodelet/src/zed_wrapper_nodelet.cpp#L1303
 
-    if (name.find("RIGHT") != std::string::npos) {
+    auto const type_name = get_type_name(type);
+    if (type_name.find("RIGHT") != std::string::npos) {
         return camera_name + "_right_camera_optical_frame";
     }
     // By default the left optical frame is used for everything. The left (non
     // optical) frame id is used for things like object detection, but this is
     // not supported.
     return camera_name + "_left_camera_optical_frame";
+}
+
+static bool is_left_camera(std::variant<sl::VIEW, sl::MEASURE> const& type)
+{
+    auto const type_name = get_type_name(type);
+    return type_name.find("RIGHT") == std::string::npos;
+}
+
+static bool is_raw_image(std::variant<sl::VIEW, sl::MEASURE> const& type)
+{
+    if (!std::holds_alternative<sl::VIEW>(type)) {
+        return false;
+    }
+
+    auto const view = std::get<sl::VIEW>(type);
+    switch (view) {
+    case sl::VIEW::LEFT_UNRECTIFIED:
+    case sl::VIEW::RIGHT_UNRECTIFIED:
+    case sl::VIEW::LEFT_UNRECTIFIED_GRAY:
+    case sl::VIEW::RIGHT_UNRECTIFIED_GRAY:
+        return true;
+    default:
+        return false;
+    }
 }
 
 inline bool is_point_cloud(std::variant<sl::VIEW, sl::MEASURE> type)

@@ -1,7 +1,6 @@
 #pragma once
 #include "../config.hpp"
-#include "../foxglove/BuildFileDescriptorSet.hpp"
-#include "../zed/zed_camera.hpp"
+#include "ros2_schemas.hpp"
 #include <condition_variable>
 #include <fmt/format.h>
 #include <foxglove/CameraCalibration.pb.h>
@@ -48,7 +47,7 @@ public:
 
     Status init(config::Config const& config)
     {
-        mcap::McapWriterOptions options("protobuf");
+        mcap::McapWriterOptions options("ros2");
         if (config.output.compression == "lz4") {
             options.compression = mcap::Compression::Lz4;
         } else if (config.output.compression == "zstd") {
@@ -82,30 +81,20 @@ public:
         m_worker_thread.join();
     }
 
-    Status write_image(std::string const& camera_name,
-        zed::ChannelImage const& channel_image, sl::Timestamp const& timestamp);
-
-    Status write_point_cloud(std::string const& camera_name,
-        zed::ChannelImage const& channel_image, sl::Timestamp const& timestamp);
-
     struct MessageData {
         mcap::ChannelId channel_id;
         mcap::Timestamp timestamp;
-        std::string payload;
+        std::vector<std::byte> payload;
     };
 
-    Status queue_message(MessageData const& message);
+    Status queue_message(std::vector<std::byte> const& payload,
+        std::string const& channel_name, sl::Timestamp timestamp);
 
-    Status register_channel(std::string const& camera_name,
+    Status register_channel(
         std::string const& channel_name, std::string const& schema_name)
     {
-        std::unique_lock<std::mutex> const lock(m_mutex);
-
-        std::string const channel_key
-            = fmt::format("{}/{}", camera_name, channel_name);
-
-        if (m_channels.contains(channel_key)
-            && m_channels[channel_key].registered) {
+        if (m_channels.contains(channel_name)
+            && m_channels[channel_name].registered) {
             return {};
         }
 
@@ -116,12 +105,12 @@ public:
         }
 
         mcap::Channel channel(
-            channel_key, "protobuf", m_schemas[schema_name].schema.id);
+            channel_name, "cdr", m_schemas[schema_name].schema.id);
         m_writer->addChannel(channel);
-        std::cout << fmt::format("Registered channel '{}'", channel_key)
+        std::cout << fmt::format("Registered channel '{}'", channel_name)
                   << '\n';
 
-        m_channels[channel_key]
+        m_channels[channel_name]
             = { .channel = channel, .registered = true, .sequence = 0 };
 
         return {};
@@ -131,42 +120,15 @@ private:
     // https://mcap.dev/spec/registry
     void register_schemas()
     {
-        // Register RawImage schema
-        {
-            mcap::Schema schema("foxglove.RawImage", "protobuf",
-                foxglove::BuildFileDescriptorSet(
-                    foxglove::RawImage::descriptor())
-                    .SerializeAsString());
+        for (auto const [schema_name, schema_data] :
+            { ros2schemas::sensor_msgs_msg_Image,
+                ros2schemas::sensor_msgs_msg_CameraInfo,
+                ros2schemas::sensor_msgs_msg_PointCloud2 }) {
+            mcap::Schema schema(schema_name, "ros2msg", schema_data);
 
             m_writer->addSchema(schema);
 
-            m_schemas["foxglove.RawImage"]
-                = { .schema = schema, .registered = true };
-        }
-
-        // Register CameraCalibration schema
-        {
-            mcap::Schema schema("foxglove.CameraCalibration", "protobuf",
-                foxglove::BuildFileDescriptorSet(
-                    foxglove::CameraCalibration::descriptor())
-                    .SerializeAsString());
-
-            m_writer->addSchema(schema);
-
-            m_schemas["foxglove.CameraCalibration"]
-                = { .schema = schema, .registered = true };
-        }
-
-        // Register PointCloud schema
-        {
-            mcap::Schema schema("foxglove.PointCloud", "protobuf",
-                foxglove::BuildFileDescriptorSet(
-                    foxglove::PointCloud::descriptor())
-                    .SerializeAsString());
-
-            m_writer->addSchema(schema);
-
-            m_schemas["foxglove.PointCloud"]
+            m_schemas[std::string(schema_name)]
                 = { .schema = schema, .registered = true };
         }
     }
@@ -176,8 +138,8 @@ private:
     std::unique_ptr<mcap::McapWriter> m_writer;
     std::map<std::string, SchemaInfo> m_schemas;
     std::map<std::string, ChannelInfo> m_channels;
-    std::mutex m_mutex;
 
+    std::mutex m_queue_mutex;
     std::queue<MessageData> m_messages;
     std::thread m_worker_thread;
     std::atomic_bool m_done = false;

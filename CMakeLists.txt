@@ -69,16 +69,20 @@ include(cmake/fmt.cmake)
 
 find_package(ZED 5 REQUIRED)
 find_package(CUDA ${ZED_CUDA_VERSION} REQUIRED)
-
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(rclcpp REQUIRED)
 
 
 add_executable(${PROJECT_NAME}
-  src/main.cpp
-  src/config.cpp
-  src/camera_manager.cpp
+  src/utils/zed_to_ros.cpp
+  src/foxglove/BuildFileDescriptorSet.cpp
   src/mcap/mcap_impl.cpp
   src/mcap/mcap_writer.cpp
-  src/foxglove/BuildFileDescriptorSet.cpp
+  src/camera_manager.cpp
+  src/config.cpp
+  src/converter.cpp
+  src/main.cpp
 )
 
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
@@ -98,10 +102,12 @@ else()
   set(ZED_LIBS ${ZED_STATIC_LIBRARIES} ${CUDA_CUDA_LIBRARY} ${CUDA_LIBRARY})
 endif()
 
-target_link_libraries(${PROJECT_NAME} PRIVATE ${ZED_LIBS} ${OpenCV_LIBRARIES} zstd yaml-cpp::yaml-cpp foxglove_proto_lib magic_enum::magic_enum fmt::fmt beuss_warnings beuss_options)
+ament_target_dependencies(${PROJECT_NAME} std_msgs sensor_msgs rclcpp)
+target_link_libraries(${PROJECT_NAME} ${ZED_LIBS} ${OpenCV_LIBRARIES} zstd yaml-cpp::yaml-cpp foxglove_proto_lib magic_enum::magic_enum fmt::fmt beuss_warnings beuss_options)
 
 if(beuss_ENABLE_CACHE)
   include(cmake/Cache.cmake)
   beuss_enable_cache()
 endif()
 
+ament_package()

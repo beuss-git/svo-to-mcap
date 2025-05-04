@@ -53,21 +53,14 @@ Status CameraManager::process_frames(WriterCallback const& writer_callback)
             safe.type = channel.type;
             safe.frame_id = channel.frame_id;
             if (std::holds_alternative<sl::VIEW>(channel.type)) {
-                // sl::Mat temp;
                 camera->zed().retrieveImage(
                     safe.image, std::get<sl::VIEW>(channel.type));
-                // safe.image.clone(temp); // NOTE: Deep copy needed because zed
-                //                         // overwrites the matrix buffer
-                //                         before
-                //                         // we write it into the capture file.
             } else if (std::holds_alternative<sl::MEASURE>(channel.type)) {
-                // sl::Mat temp;
                 camera->zed().retrieveMeasure(
                     safe.image, std::get<sl::MEASURE>(channel.type));
-                // safe.image.clone(temp);
             }
 
-            auto res = writer_callback(camera->name(), safe, timestamp);
+            auto res = writer_callback(*camera, safe, timestamp);
             if (!res.ok()) {
                 std::cerr << "Failed to write image: " << res.message << "\n";
             }

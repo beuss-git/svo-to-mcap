@@ -5,122 +5,26 @@
 #include "zed/zed_camera.hpp"
 #include <filesystem>
 #include <mcap/writer.hpp>
+#include <rclcpp/serialization.hpp>
+#include <rclcpp/serialized_message.hpp>
 
 class Converter {
 
 public:
     Converter() = default;
-    bool init(std::filesystem::path const& config_path)
-    {
-        auto config_status = config::parse(m_config, config_path);
-        if (!config_status.ok()) {
-            std::cerr << "Failed to parse config: " << config_status.message
-                      << "\n";
-            return false;
-        }
-
-        auto camera_status = m_camera_manager.init(m_config);
-        if (!camera_status.ok()) {
-            std::cerr << "Failed to initialize camera manager: "
-                      << camera_status.message << "\n";
-            return false;
-        }
-
-        auto mcap_status = m_mcap_writer.init(m_config);
-        if (!mcap_status.ok()) {
-            std::cerr << "Failed to initialize MCAP writer: "
-                      << mcap_status.message << "\n";
-            return false;
-        }
-
-        for (auto const& camera : m_camera_manager.cameras()) {
-            for (auto const& channel_image : camera->channel_images()) {
-                bool const is_point_cloud
-                    = zed::is_point_cloud(channel_image.type);
-                auto const status = m_mcap_writer.register_channel(
-                    camera->name(), channel_image.name,
-                    is_point_cloud ? "foxglove.PointCloud"
-                                   : "foxglove.RawImage");
-                if (!status.ok()) {
-                    std::cerr
-                        << "Failed to register channel: " << status.message
-                        << "\n";
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-    int run()
-    {
-        std::cout << "Starting SVO to MCAP conversion...\n";
-        auto start_time = std::chrono::high_resolution_clock::now();
-
-        // First write camera calibration data.
-        // for (auto const& camera : m_camera_manager.cameras()) {
-        //     sl::Timestamp timestamp;
-        //     timestamp.setNanoseconds(
-        //         std::chrono::duration_cast<std::chrono::nanoseconds>(
-        //             std::chrono::system_clock::now().time_since_epoch())
-        //             .count());
-        //
-        // }
-        //
-        // std::string const&, zed::ChannelImage const&, sl::Timestamp const&
-
-        size_t message_count = 0;
-        auto frame_callback = [this, &message_count](
-                                  std::string const& camera_name,
-                                  zed::ChannelImage const& channel_image,
-                                  sl::Timestamp const& timestamp) {
-            if (zed::is_point_cloud(channel_image.type)) {
-                auto status = m_mcap_writer.write_point_cloud(
-                    camera_name, channel_image, timestamp);
-                if (!status.ok()) {
-                    std::cerr
-                        << "Failed to write point cloud: " << status.message
-                        << "\n";
-                }
-            } else {
-
-                std::cout << "1 Channel image name: " << channel_image.name
-                          << "\n";
-                auto status = m_mcap_writer.write_image(
-                    camera_name, channel_image, timestamp);
-                if (!status.ok()) {
-                    std::cerr << "Failed to write image: " << status.message
-                              << "\n";
-                }
-            }
-            std::cout << "Messages written: " << ++message_count << "\n";
-            return camera::Status();
-        };
-
-        m_camera_manager.process_frames(frame_callback);
-        m_camera_manager.close_all();
-
-        m_mcap_writer.shutdown();
-
-        auto end_time = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            end_time - start_time);
-
-        std::cout << "Conversion complete!\n";
-        std::cout << "Processed " << m_camera_manager.frames_processed()
-                  << " frames in "
-                  << static_cast<double>(duration.count()) / 1000.0
-                  << " seconds\n";
-        std::cout << "Average FPS: "
-                  << static_cast<double>(m_camera_manager.frames_processed())
-                / (static_cast<double>(duration.count()) / 1000.0)
-                  << "\n";
-        std::cout << "Output file: " << m_config.output.file.string() << "\n";
-
-        return 0;
-    }
+    bool init(std::filesystem::path const& config_path);
+    int run();
 
 private:
+    mcap_writer::Status write_camera_info(zed::ZEDCamera& camera,
+        zed::ChannelImage const& channel_image, sl::Timestamp timestamp);
+
+    mcap_writer::Status handle_image(zed::ZEDCamera& camera,
+        zed::ChannelImage const& channel_image, sl::Timestamp timestamp);
+
+    mcap_writer::Status handle_point_cloud(zed::ZEDCamera const& camera,
+        zed::ChannelImage const& channel_image, sl::Timestamp timestamp);
+
     config::Config m_config {};
     camera::CameraManager m_camera_manager;
 
