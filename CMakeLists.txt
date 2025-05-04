@@ -33,9 +33,9 @@ endmacro()
 
 beuss_supports_sanitizers()
 
-option(beuss_ENABLE_SANITIZER_ADDRESS "Enable address sanitizer" ${SUPPORTS_ASAN})
+option(beuss_ENABLE_SANITIZER_ADDRESS "Enable address sanitizer" OFF)
 option(beuss_ENABLE_SANITIZER_LEAK "Enable leak sanitizer" OFF)
-option(beuss_ENABLE_SANITIZER_UNDEFINED "Enable undefined sanitizer" ${SUPPORTS_UBSAN})
+option(beuss_ENABLE_SANITIZER_UNDEFINED "Enable undefined sanitizer" OFF)
 option(beuss_ENABLE_SANITIZER_THREAD "Enable thread sanitizer" OFF)
 option(beuss_ENABLE_SANITIZER_MEMORY "Enable memory sanitizer" OFF)
 
