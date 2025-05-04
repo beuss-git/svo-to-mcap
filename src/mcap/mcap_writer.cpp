@@ -12,9 +12,9 @@ Status McapWriter::queue_message(std::vector<std::byte> const& payload,
     }
 
     std::unique_lock lock(m_queue_mutex);
-    if (m_messages.size() >= m_max_queue_size) {
-        std::cerr << "Queue full, waiting for space...\n";
-    }
+    // if (m_messages.size() >= m_max_queue_size) {
+    //     std::cerr << "Queue full, waiting for space...\n";
+    // }
     m_cv.wait(lock,
         [this]() { return m_messages.size() < m_max_queue_size || m_done; });
 
@@ -34,11 +34,12 @@ Status McapWriter::queue_message(std::vector<std::byte> const& payload,
 
 void McapWriter::worker_thread()
 {
-    size_t messages_written = 0;
     while (true) {
         std::unique_lock lock(m_queue_mutex);
-        m_cv.wait(lock, [this]() { return !m_messages.empty() || m_done; });
-        if (m_done && m_messages.empty()) {
+        m_cv.wait(lock, [this]() {
+            return !m_messages.empty() || m_done || m_force_shutdown;
+        });
+        if ((m_done && m_messages.empty()) || m_force_shutdown) {
             break;
         }
         assert(!m_messages.empty());
@@ -61,11 +62,8 @@ void McapWriter::worker_thread()
 
         if (!res.ok()) {
             std::cerr << "Failed to write message: " << res.message << "\n";
-            m_writer->terminate();
             break;
         }
-        std::cout << "Wrote message: " << ++messages_written << "\n";
     }
-    std::cout << "Worker thread done.\n";
 }
 }

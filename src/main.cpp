@@ -1,6 +1,14 @@
 #include "converter.hpp"
+#include <csignal>
 #include <gsl/gsl>
 #include <iostream>
+
+static void handle_signal(int signal)
+{
+    if (signal == SIGINT) {
+        stop_requested = true;
+    }
+}
 
 int main(int argc, char const* argv[])
 {
@@ -9,6 +17,8 @@ int main(int argc, char const* argv[])
     if (args.size() > 1) {
         config_path = args[1];
     }
+
+    (void)std::signal(SIGINT, handle_signal);
 
     Converter converter;
     if (!converter.init(config_path)) {

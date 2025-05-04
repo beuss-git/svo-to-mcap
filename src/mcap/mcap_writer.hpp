@@ -68,14 +68,17 @@ public:
         return {};
     }
 
-    void shutdown()
+    void shutdown(bool force = false)
     {
+        m_force_shutdown = force;
         m_done = true;
         m_cv.notify_all();
         m_worker_thread.join();
     }
 
     void flush() { m_writer->close(); }
+
+    void terminate() { m_writer->terminate(); }
 
     struct MessageData {
         mcap::ChannelId channel_id;
@@ -139,6 +142,7 @@ private:
     std::queue<MessageData> m_messages;
     std::thread m_worker_thread;
     std::atomic_bool m_done = false;
+    std::atomic_bool m_force_shutdown = false;
     std::condition_variable m_cv;
     size_t m_max_queue_size = 400;
 };

@@ -79,7 +79,6 @@ add_executable(${PROJECT_NAME}
   src/mcap/mcap_writer.cpp
   src/utils/zed_utils.cpp
   src/zed/zed_camera.cpp
-  src/camera_manager.cpp
   src/config.cpp
   src/converter.cpp
   src/main.cpp
