@@ -58,6 +58,9 @@ The tool uses YAML configuration files. Here's an example:
 cameras:
   - name: zed_camera_1
     svo_file: /path/to/cam1_recording.svo
+    settings:
+        depth_mode: NEURAL
+        coordinate_units: METER
     channels:
       - name: left
         type: VIEW::LEFT
@@ -67,6 +70,7 @@ cameras:
         type: MEASURE::DEPTH_U16_MM
       - name: point_cloud
         type: MEASURE::XYZRGBA
+
   - name: zed_camera_2
     svo_file: /path/to/cam2_recording.svo
     channels:
@@ -79,13 +83,16 @@ output:
 
 ### Camera Configuration
 
-- `name`: Camera identifier (used for output channel naming)
-- `svo_file`: Path to the SVO recording file
+- `name` (required): Camera identifier (used for output channel naming)
+- `svo_file` (required): Path to the SVO recording file
 - `channels`: List of data channels to extract
+- `settings`: Camera settings
+    - `depth_mode`: Depth mode, corresponds to ZED SDK enum sl::DEPTH_MODE (Defaults is NONE)
+    - `coordinate_units`: Coordinate units, corresponds to ZED SDK enum sl::UNIT (Default is METER)
 
 ### Channel Types
 
-Channels can be one of two types:
+Channels can be one of two types (sl::VIEW or sl::MEASURE):
 
 1. VIEW types (prefixed with `VIEW::`):
    - `LEFT`, `RIGHT`, `LEFT_UNRECTIFIED`, `RIGHT_UNRECTIFIED`, etc.
@@ -102,6 +109,8 @@ The converter produces an MCAP file with the following ROS2 message types:
 - `sensor_msgs/msg/Image`: For regular images and depth maps
 - `sensor_msgs/msg/CameraInfo`: Camera calibration information
 - `sensor_msgs/msg/PointCloud2`: For point cloud data
+
+More messages can easily be added such as IMU, temperature, detected objects etc, but I don't need those (for now).
 
 ## Merging with ROS2 Recordings
 
