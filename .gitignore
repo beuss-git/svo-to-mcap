@@ -1,2 +1,4 @@
 build/
 .cache/
+*.mcap
+compile_commands.json
