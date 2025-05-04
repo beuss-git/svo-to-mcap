@@ -1,5 +1,5 @@
 #include "mcap_writer.hpp"
-#include <foxglove/CameraCalibration.pb.h>
+#include <cassert>
 
 namespace mcap_writer {
 Status McapWriter::queue_message(std::vector<std::byte> const& payload,

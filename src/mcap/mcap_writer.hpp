@@ -3,9 +3,6 @@
 #include "ros2_schemas.hpp"
 #include <condition_variable>
 #include <fmt/format.h>
-#include <foxglove/CameraCalibration.pb.h>
-#include <foxglove/PointCloud.pb.h>
-#include <foxglove/RawImage.pb.h>
 #include <map>
 #include <mcap/writer.hpp>
 #include <queue>

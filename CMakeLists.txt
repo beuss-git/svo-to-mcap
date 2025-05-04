@@ -63,7 +63,6 @@ beuss_enable_sanitizers(
 
 include(cmake/mcap.cmake)
 include(cmake/yaml-cpp.cmake)
-include(cmake/foxglove-proto.cmake)
 include(cmake/magic_enum.cmake)
 include(cmake/fmt.cmake)
 
@@ -76,7 +75,6 @@ find_package(rclcpp REQUIRED)
 
 add_executable(${PROJECT_NAME}
   src/utils/zed_to_ros.cpp
-  src/foxglove/BuildFileDescriptorSet.cpp
   src/mcap/mcap_impl.cpp
   src/mcap/mcap_writer.cpp
   src/camera_manager.cpp
@@ -103,7 +101,7 @@ else()
 endif()
 
 ament_target_dependencies(${PROJECT_NAME} std_msgs sensor_msgs rclcpp)
-target_link_libraries(${PROJECT_NAME} ${ZED_LIBS} ${OpenCV_LIBRARIES} zstd yaml-cpp::yaml-cpp foxglove_proto_lib magic_enum::magic_enum fmt::fmt beuss_warnings beuss_options)
+target_link_libraries(${PROJECT_NAME} ${ZED_LIBS} ${OpenCV_LIBRARIES} zstd yaml-cpp::yaml-cpp magic_enum::magic_enum fmt::fmt beuss_warnings beuss_options)
 
 if(beuss_ENABLE_CACHE)
   include(cmake/Cache.cmake)
