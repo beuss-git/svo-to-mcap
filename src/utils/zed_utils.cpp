@@ -74,7 +74,7 @@ void image_to_ros_msg(sensor_msgs::msg::Image& imgMsg, sl::Mat const& img,
 
     imgMsg.step = static_cast<uint32_t>(img.getStepBytes());
 
-    size_t const size = static_cast<size_t const>(imgMsg.step) * imgMsg.height;
+    uint32_t const size = imgMsg.step * imgMsg.height;
     imgMsg.data.resize(size);
 
     sl::MAT_TYPE const dataType = img.getDataType();
