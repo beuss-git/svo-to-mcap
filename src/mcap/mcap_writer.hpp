@@ -53,9 +53,6 @@ public:
             options.compression = mcap::Compression::None;
         }
         options.compressionLevel = mcap::CompressionLevel::Fastest;
-        options.profile = "fastwrite";
-        // options.noChunking = true;
-        // options.noSummaryCRC = true;
 
         auto result = m_writer->open(config.output.file.string(), options);
         if (!result.ok()) {
@@ -77,6 +74,8 @@ public:
         m_cv.notify_all();
         m_worker_thread.join();
     }
+
+    void flush() { m_writer->close(); }
 
     struct MessageData {
         mcap::ChannelId channel_id;

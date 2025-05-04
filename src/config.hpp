@@ -19,11 +19,6 @@ struct Camera {
     std::vector<Channel> channels;
 };
 
-struct ProcessingConfig {
-    size_t frames_limit = 500;
-    size_t threads = 1;
-};
-
 struct OutputConfig {
     std::filesystem::path file = "output_new_current.mcap";
     std::string compression = "zstd";
@@ -31,7 +26,6 @@ struct OutputConfig {
 
 struct Config {
     std::vector<Camera> cameras;
-    ProcessingConfig processing;
     OutputConfig output;
 };
 

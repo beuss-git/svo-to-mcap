@@ -30,8 +30,7 @@ using WriterCallback = std::function<Status(zed::ZEDCamera& camera,
 class CameraManager {
 public:
     CameraManager()
-        : m_running(false)
-        , m_frames_processed(0)
+        : m_frames_processed(0)
     {
     }
     Status init(config::Config const& config);
@@ -53,9 +52,8 @@ public:
     }
 
 private:
+    [[nodiscard]] bool all_cameras_finished() const;
     std::vector<std::unique_ptr<zed::ZEDCamera>> m_cameras;
-    std::atomic_bool m_running;
     std::atomic<size_t> m_frames_processed;
-    size_t m_frames_limit {};
 };
 }

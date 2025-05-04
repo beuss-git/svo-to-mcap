@@ -17,8 +17,6 @@ static std::vector<std::byte> serialize_ros2_message(Message const& msg)
     // Serialize the message into the buffer
     serializer.serialize_message(&msg, &serialized_msg);
 
-    std::cout << "Serialied message size: " << serialized_msg.size() << '\n';
-
     return { reinterpret_cast<std::byte*>(
                  serialized_msg.get_rcl_serialized_message().buffer),
         reinterpret_cast<std::byte*>(
@@ -93,8 +91,7 @@ int Converter::run()
     std::cout << "Starting SVO to MCAP conversion...\n";
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    size_t message_count = 0;
-    auto frame_callback = [this, &message_count](zed::ZEDCamera& camera,
+    auto frame_callback = [this](zed::ZEDCamera& camera,
                               zed::ChannelImage const& channel_image,
                               sl::Timestamp const& timestamp) {
         if (zed_utils::is_point_cloud(channel_image.type)) {
@@ -110,7 +107,6 @@ int Converter::run()
                           << "\n";
             }
         }
-        std::cout << "Messages written: " << ++message_count << "\n";
         return camera::Status();
     };
 
@@ -131,7 +127,9 @@ int Converter::run()
               << static_cast<double>(m_camera_manager.frames_processed())
             / (static_cast<double>(duration.count()) / 1000.0)
               << "\n";
-    std::cout << "Output file: " << m_config.output.file.string() << "\n";
+    std::cout << "Flushing the remaining data to disk..." << std::flush;
+    m_mcap_writer.flush();
+    std::cout << "Done!\n";
 
     return 0;
 }
