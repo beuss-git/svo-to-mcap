@@ -7,15 +7,15 @@
 namespace zed_utils {
 
 void pointcloud_to_ros_msg(sensor_msgs::msg::PointCloud2& pcMsg,
-    sl::Mat const& mMatCloud, std::string const& frame_id,
-    sl::Timestamp timestamp);
+    sl::Mat const& mat_cloud, sl::Resolution const& resolution,
+    std::string const& frame_id, sl::Timestamp timestamp);
 
-void image_to_ros_msg(sensor_msgs::msg::Image& imgMsg, sl::Mat img,
-    std::string const& frameId, sl::Timestamp timestamp);
+void image_to_ros_msg(sensor_msgs::msg::Image& imgMsg, sl::Mat const& img,
+    std::string const& frame_id, sl::Timestamp timestamp);
 
 void fill_cam_info(sl::Camera& camera,
-    sensor_msgs::msg::CameraInfo& leftCamInfoMsg,
-    sensor_msgs::msg::CameraInfo& rightCamInfoMsg,
-    std::string const& leftFrameId, std::string const& rightFrameId,
-    sl::Resolution resolution, bool rawParam);
+    sensor_msgs::msg::CameraInfo& left_cam_info_msg,
+    sensor_msgs::msg::CameraInfo& right_cam_info_msg,
+    std::string const& left_frame_id, std::string const& right_frame_id,
+    sl::Resolution resolution, bool is_raw_image);
 }

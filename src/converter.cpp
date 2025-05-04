@@ -148,11 +148,11 @@ mcap_writer::Status Converter::write_camera_info(zed::ZEDCamera& camera,
     sensor_msgs::msg::CameraInfo cam_info_left {};
     sensor_msgs::msg::CameraInfo cam_info_right {};
 
-    auto const mMatResol
+    auto const resolution
         = camera.camera_information().camera_configuration.resolution;
 
     zed_utils::fill_cam_info(camera.zed(), cam_info_left, cam_info_right,
-        frame_id, frame_id, mMatResol, is_raw_image);
+        frame_id, frame_id, resolution, is_raw_image);
 
     if (is_left_camera) {
         auto const payload_left = serialize_ros2_message(cam_info_left);
@@ -171,7 +171,6 @@ mcap_writer::Status Converter::handle_image(zed::ZEDCamera& camera,
         = fmt::format("{}/{}", camera.name(), channel_image.name);
 
     sensor_msgs::msg::Image ros_image;
-
     zed_utils::image_to_ros_msg(
         ros_image, channel_image.image, channel_image.frame_id, timestamp);
 
@@ -183,16 +182,18 @@ mcap_writer::Status Converter::handle_image(zed::ZEDCamera& camera,
     return {};
 }
 
-mcap_writer::Status Converter::handle_point_cloud(zed::ZEDCamera const& camera,
+mcap_writer::Status Converter::handle_point_cloud(zed::ZEDCamera& camera,
     zed::ChannelImage const& channel_image, sl::Timestamp timestamp)
 {
     std::string const channel_name
         = fmt::format("{}/{}", camera.name(), channel_image.name);
 
-    sensor_msgs::msg::PointCloud2 ros_pointcloud;
+    auto const resolution
+        = camera.camera_information().camera_configuration.resolution;
 
-    zed_utils::pointcloud_to_ros_msg(
-        ros_pointcloud, channel_image.image, channel_image.frame_id, timestamp);
+    sensor_msgs::msg::PointCloud2 ros_pointcloud;
+    zed_utils::pointcloud_to_ros_msg(ros_pointcloud, channel_image.image,
+        resolution, channel_image.frame_id, timestamp);
 
     auto const payload = serialize_ros2_message(ros_pointcloud);
 
