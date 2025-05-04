@@ -17,6 +17,8 @@ struct Camera {
     std::string name;
     std::filesystem::path svo_path;
     std::vector<Channel> channels;
+    sl::DEPTH_MODE depth_mode = sl::DEPTH_MODE::NONE;
+    sl::UNIT coordinate_units = sl::UNIT::METER;
 };
 
 struct OutputConfig {

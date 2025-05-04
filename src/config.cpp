@@ -4,7 +4,50 @@
 
 namespace config {
 
-static Status parse_channels(Camera& camera, const YAML::Node& ychannels)
+static Status parse_camera_settings(Camera& camera, const YAML::Node& settings)
+{
+    if (!settings) {
+        return {};
+    }
+
+    auto const depth_mode = settings["depth_mode"];
+    if (depth_mode) {
+        try {
+            auto const maybe_depth_mode = magic_enum::enum_cast<sl::DEPTH_MODE>(
+                depth_mode.as<std::string>());
+            if (maybe_depth_mode.has_value()) {
+                camera.depth_mode = *maybe_depth_mode;
+            } else {
+                return { StatusCode::InvalidType,
+                    fmt::format("depth_mode {} not found.",
+                        depth_mode.as<std::string>()) };
+            }
+        } catch (const YAML::Exception& e) {
+            return { StatusCode::ParseError,
+                fmt::format("Failed to parse depth_mode: {}", e.what()) };
+        }
+    }
+
+    auto const coordinate_units = settings["coordinate_units"];
+    if (coordinate_units) {
+        try {
+            auto const maybe_coordinate_units = magic_enum::enum_cast<sl::UNIT>(
+                coordinate_units.as<std::string>());
+            if (maybe_coordinate_units.has_value()) {
+                camera.coordinate_units = *maybe_coordinate_units;
+            } else {
+                return { StatusCode::InvalidType,
+                    fmt::format("coordinate_units {} not found.",
+                        coordinate_units.as<std::string>()) };
+            }
+        } catch (const YAML::Exception& e) {
+            return { StatusCode::ParseError,
+                fmt::format("Failed to parse coordinate_units: {}", e.what()) };
+        }
+    }
+    return {};
+}
+static Status parse_camera_channels(Camera& camera, const YAML::Node& ychannels)
 {
     for (auto ychannel : ychannels) {
         Channel channel {};
@@ -75,7 +118,12 @@ Status parse(Config& config, std::filesystem::path const& config_path)
                     e.what()) };
         }
 
-        auto const status = parse_channels(camera, ycam["channels"]);
+        auto status = parse_camera_channels(camera, ycam["channels"]);
+        if (!status.ok()) {
+            return status;
+        }
+
+        status = parse_camera_settings(camera, ycam["settings"]);
         if (!status.ok()) {
             return status;
         }
