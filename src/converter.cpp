@@ -1,5 +1,5 @@
 #include "converter.hpp"
-#include "utils/zed_to_ros.hpp"
+#include "utils/zed_utils.hpp"
 #include <rclcpp/serialization.hpp>
 #include <rclcpp/serialized_message.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
@@ -19,8 +19,10 @@ static std::vector<std::byte> serialize_ros2_message(Message const& msg)
 
     std::cout << "Serialied message size: " << serialized_msg.size() << '\n';
 
-    return { (std::byte*)serialized_msg.get_rcl_serialized_message().buffer,
-        (std::byte*)serialized_msg.get_rcl_serialized_message().buffer
+    return { reinterpret_cast<std::byte*>(
+                 serialized_msg.get_rcl_serialized_message().buffer),
+        reinterpret_cast<std::byte*>(
+            serialized_msg.get_rcl_serialized_message().buffer)
             + serialized_msg.size() };
 }
 
@@ -49,7 +51,8 @@ bool Converter::init(std::filesystem::path const& config_path)
 
     for (auto const& camera : m_camera_manager.cameras()) {
         for (auto const& channel_image : camera->channel_images()) {
-            bool const is_point_cloud = zed::is_point_cloud(channel_image.type);
+            bool const is_point_cloud
+                = zed_utils::is_point_cloud(channel_image.type);
 
             std::string const channel_name
                 = fmt::format("{}/{}", camera->name(), channel_image.name);
@@ -94,7 +97,7 @@ int Converter::run()
     auto frame_callback = [this, &message_count](zed::ZEDCamera& camera,
                               zed::ChannelImage const& channel_image,
                               sl::Timestamp const& timestamp) {
-        if (zed::is_point_cloud(channel_image.type)) {
+        if (zed_utils::is_point_cloud(channel_image.type)) {
             auto status = handle_point_cloud(camera, channel_image, timestamp);
             if (!status.ok()) {
                 std::cerr << "Failed to write point cloud: " << status.message
@@ -136,9 +139,10 @@ int Converter::run()
 mcap_writer::Status Converter::write_camera_info(zed::ZEDCamera& camera,
     zed::ChannelImage const& channel_image, sl::Timestamp timestamp)
 {
-    bool const is_left_camera = zed::is_left_camera(channel_image.type);
-    bool const is_raw_image = zed::is_raw_image(channel_image.type);
-    auto const frame_id = zed::get_frame_id(camera.name(), channel_image.type);
+    bool const is_left_camera = zed_utils::is_left_camera(channel_image.type);
+    bool const is_raw_image = zed_utils::is_raw_image(channel_image.type);
+    auto const frame_id
+        = zed_utils::get_frame_id(camera.name(), channel_image.type);
 
     std::string const channel_name
         = fmt::format("{}/{}/camera_info", camera.name(), channel_image.name);
@@ -172,7 +176,7 @@ mcap_writer::Status Converter::handle_image(zed::ZEDCamera& camera,
 
     sensor_msgs::msg::Image ros_image;
     zed_utils::image_to_ros_msg(
-        ros_image, channel_image.image, channel_image.frame_id, timestamp);
+        ros_image, channel_image.mat, channel_image.frame_id, timestamp);
 
     auto const payload = serialize_ros2_message(ros_image);
 
@@ -192,7 +196,7 @@ mcap_writer::Status Converter::handle_point_cloud(zed::ZEDCamera& camera,
         = camera.camera_information().camera_configuration.resolution;
 
     sensor_msgs::msg::PointCloud2 ros_pointcloud;
-    zed_utils::pointcloud_to_ros_msg(ros_pointcloud, channel_image.image,
+    zed_utils::pointcloud_to_ros_msg(ros_pointcloud, channel_image.mat,
         resolution, channel_image.frame_id, timestamp);
 
     auto const payload = serialize_ros2_message(ros_pointcloud);

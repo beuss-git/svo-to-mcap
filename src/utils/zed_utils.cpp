@@ -1,12 +1,13 @@
-#include "zed_to_ros.hpp"
-#include "rclcpp/time.hpp"
-#include "sensor_msgs/distortion_models.hpp"
-#include "sensor_msgs/image_encodings.hpp"
+#include "zed_utils.hpp"
 #include <bit>
 #include <cstddef>
 #include <gsl/gsl>
+#include <magic_enum/magic_enum.hpp>
 #include <rclcpp/serialization.hpp>
 #include <rclcpp/serialized_message.hpp>
+#include <rclcpp/time.hpp>
+#include <sensor_msgs/distortion_models.hpp>
+#include <sensor_msgs/image_encodings.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <sl/Camera.hpp>
@@ -287,5 +288,139 @@ void fill_cam_info(sl::Camera& camera,
         = static_cast<uint32_t>(resolution.height);
     left_cam_info_msg.header.frame_id = left_frame_id;
     right_cam_info_msg.header.frame_id = right_frame_id;
+}
+
+sl::MAT_TYPE get_mat_type(sl::VIEW view)
+{
+    switch (view) {
+    case sl::VIEW::LEFT:
+    case sl::VIEW::RIGHT:
+    case sl::VIEW::LEFT_UNRECTIFIED:
+    case sl::VIEW::RIGHT_UNRECTIFIED:
+    case sl::VIEW::SIDE_BY_SIDE:
+    case sl::VIEW::DEPTH:
+    case sl::VIEW::CONFIDENCE:
+    case sl::VIEW::NORMALS:
+    case sl::VIEW::DEPTH_RIGHT:
+    case sl::VIEW::NORMALS_RIGHT:
+        return sl::MAT_TYPE::U8_C4;
+    case sl::VIEW::LEFT_GRAY:
+    case sl::VIEW::RIGHT_GRAY:
+    case sl::VIEW::LEFT_UNRECTIFIED_GRAY:
+    case sl::VIEW::RIGHT_UNRECTIFIED_GRAY:
+        return sl::MAT_TYPE::U8_C1;
+    default:
+        std::cerr << "Unknown view type: " << static_cast<int>(view) << "\n";
+        std::exit(1);
+    }
+}
+
+sl::MAT_TYPE get_mat_type(sl::MEASURE measure)
+{
+    switch (measure) {
+    case sl::MEASURE::DISPARITY:
+    case sl::MEASURE::DEPTH:
+    case sl::MEASURE::CONFIDENCE:
+    case sl::MEASURE::DISPARITY_RIGHT:
+    case sl::MEASURE::DEPTH_RIGHT:
+        return sl::MAT_TYPE::F32_C1;
+    case sl::MEASURE::XYZ:
+    case sl::MEASURE::XYZRGBA:
+    case sl::MEASURE::XYZBGRA:
+    case sl::MEASURE::XYZARGB:
+    case sl::MEASURE::XYZABGR:
+    case sl::MEASURE::NORMALS:
+    case sl::MEASURE::XYZ_RIGHT:
+    case sl::MEASURE::XYZRGBA_RIGHT:
+    case sl::MEASURE::XYZBGRA_RIGHT:
+    case sl::MEASURE::XYZARGB_RIGHT:
+    case sl::MEASURE::XYZABGR_RIGHT:
+    case sl::MEASURE::NORMALS_RIGHT:
+        return sl::MAT_TYPE::F32_C4;
+    case sl::MEASURE::DEPTH_U16_MM:
+    case sl::MEASURE::DEPTH_U16_MM_RIGHT:
+        return sl::MAT_TYPE::U16_C1;
+    default:
+        std::cerr << "Unknown measure type: " << static_cast<int>(measure)
+                  << "\n";
+        std::exit(1);
+    }
+}
+
+static std::string get_type_name(
+    std::variant<sl::VIEW, sl::MEASURE> const& type)
+{
+    std::string name;
+    if (std::holds_alternative<sl::VIEW>(type)) {
+        name = magic_enum::enum_name(std::get<sl::VIEW>(type));
+    } else if (std::holds_alternative<sl::MEASURE>(type)) {
+        name = magic_enum::enum_name(std::get<sl::MEASURE>(type));
+    } else {
+        assert(false);
+    }
+    return name;
+}
+
+std::string get_frame_id(std::string const& camera_name,
+    std::variant<sl::VIEW, sl::MEASURE> const& type)
+{
+    // https://github.com/stereolabs/zed-ros-wrapper/blob/3af19a269b0fcdbd43029f85568cfbd42504fde4/zed_nodelets/src/zed_nodelet/src/zed_wrapper_nodelet.cpp#L1303
+
+    auto const type_name = get_type_name(type);
+    if (type_name.find("RIGHT") != std::string::npos) {
+        return camera_name + "_right_camera_optical_frame";
+    }
+    // By default the left optical frame is used for everything. The left (non
+    // optical) frame id is used for things like object detection, but this is
+    // not supported.
+    return camera_name + "_left_camera_optical_frame";
+}
+
+bool is_left_camera(std::variant<sl::VIEW, sl::MEASURE> const& type)
+{
+    auto const type_name = get_type_name(type);
+    return type_name.find("RIGHT") == std::string::npos;
+}
+
+bool is_raw_image(std::variant<sl::VIEW, sl::MEASURE> const& type)
+{
+    if (!std::holds_alternative<sl::VIEW>(type)) {
+        return false;
+    }
+
+    auto const view = std::get<sl::VIEW>(type);
+    switch (view) {
+    case sl::VIEW::LEFT_UNRECTIFIED:
+    case sl::VIEW::RIGHT_UNRECTIFIED:
+    case sl::VIEW::LEFT_UNRECTIFIED_GRAY:
+    case sl::VIEW::RIGHT_UNRECTIFIED_GRAY:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool is_point_cloud(std::variant<sl::VIEW, sl::MEASURE> type)
+{
+    if (!std::holds_alternative<sl::MEASURE>(type)) {
+        return false;
+    }
+
+    auto const measure = std::get<sl::MEASURE>(type);
+    switch (measure) {
+    case sl::MEASURE::XYZ:
+    case sl::MEASURE::XYZRGBA:
+    case sl::MEASURE::XYZBGRA:
+    case sl::MEASURE::XYZARGB:
+    case sl::MEASURE::XYZABGR:
+    case sl::MEASURE::XYZ_RIGHT:
+    case sl::MEASURE::XYZRGBA_RIGHT:
+    case sl::MEASURE::XYZBGRA_RIGHT:
+    case sl::MEASURE::XYZARGB_RIGHT:
+    case sl::MEASURE::XYZABGR_RIGHT:
+        return true;
+    default:
+        return false;
+    }
 }
 }

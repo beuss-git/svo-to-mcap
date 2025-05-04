@@ -75,9 +75,10 @@ find_package(rclcpp REQUIRED)
 
 
 add_executable(${PROJECT_NAME}
-  src/utils/zed_to_ros.cpp
   src/mcap/mcap_impl.cpp
   src/mcap/mcap_writer.cpp
+  src/utils/zed_utils.cpp
+  src/zed/zed_camera.cpp
   src/camera_manager.cpp
   src/config.cpp
   src/converter.cpp

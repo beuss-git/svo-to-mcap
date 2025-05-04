@@ -54,10 +54,10 @@ Status CameraManager::process_frames(WriterCallback const& writer_callback)
             safe.frame_id = channel.frame_id;
             if (std::holds_alternative<sl::VIEW>(channel.type)) {
                 camera->zed().retrieveImage(
-                    safe.image, std::get<sl::VIEW>(channel.type));
+                    safe.mat, std::get<sl::VIEW>(channel.type));
             } else if (std::holds_alternative<sl::MEASURE>(channel.type)) {
                 camera->zed().retrieveMeasure(
-                    safe.image, std::get<sl::MEASURE>(channel.type));
+                    safe.mat, std::get<sl::MEASURE>(channel.type));
             }
 
             auto res = writer_callback(*camera, safe, timestamp);
