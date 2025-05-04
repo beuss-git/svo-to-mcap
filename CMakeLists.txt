@@ -65,6 +65,7 @@ include(cmake/mcap.cmake)
 include(cmake/yaml-cpp.cmake)
 include(cmake/magic_enum.cmake)
 include(cmake/fmt.cmake)
+include(cmake/gsl.cmake)
 
 find_package(ZED 5 REQUIRED)
 find_package(CUDA ${ZED_CUDA_VERSION} REQUIRED)
@@ -101,7 +102,18 @@ else()
 endif()
 
 ament_target_dependencies(${PROJECT_NAME} std_msgs sensor_msgs rclcpp)
-target_link_libraries(${PROJECT_NAME} ${ZED_LIBS} ${OpenCV_LIBRARIES} zstd yaml-cpp::yaml-cpp magic_enum::magic_enum fmt::fmt beuss_warnings beuss_options)
+
+target_link_libraries(${PROJECT_NAME}
+  ${ZED_LIBS}
+  ${OpenCV_LIBRARIES}
+  zstd
+  yaml-cpp::yaml-cpp
+  magic_enum::magic_enum
+  fmt::fmt
+  Microsoft.GSL::GSL
+  beuss_warnings
+  beuss_options
+)
 
 if(beuss_ENABLE_CACHE)
   include(cmake/Cache.cmake)

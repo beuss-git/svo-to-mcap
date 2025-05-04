@@ -1,14 +1,3 @@
 Diagnostics:
   ClangTidy:
     FastCheckFilter: None
-    Remove: cppcoreguidelines-avoid-const-or-ref-data-members
-
-CompileFlags:
-  Add: 
-    - --cuda-path=/usr/local/cuda-12.6
-  Remove:
-    - -arch=native
-    - -forward-unknown-to-host-compiler
-    - --generate-code*
-    - -rdc=*
-    - -Xcompiler*

@@ -15,6 +15,8 @@ Checks: >
   readability-*,
   modernize-*,
   cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-type-vararg,
   -modernize-use-trailing-return-type,
   -bugprone-easily-swappable-parameters,
   -bugprone-macro-parentheses,
@@ -36,8 +38,3 @@ Checks: >
   -concurrency-mt-unsafe,
 WarningsAsErrors: ''
 FormatStyle: none
-CheckOptions:
-  - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
-    value: true
-  - key: readability-implicit-bool-conversion.AllowPointerConditions
-    value: true
