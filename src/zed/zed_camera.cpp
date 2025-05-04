@@ -1,4 +1,5 @@
 #include "zed_camera.hpp"
+#include "../utils/zed_utils.hpp"
 
 zed::Status zed::ZEDCamera::init(config::Camera const& camera_cfg)
 {
@@ -6,9 +7,9 @@ zed::Status zed::ZEDCamera::init(config::Camera const& camera_cfg)
 
     sl::InitParameters init_parameters {};
     init_parameters.input.setFromSVOFile(camera_cfg.svo_path.string().c_str());
-    init_parameters.coordinate_units = sl::UNIT::METER;
+    init_parameters.coordinate_units = camera_cfg.coordinate_units;
     init_parameters.svo_real_time_mode = false;
-    init_parameters.depth_mode = sl::DEPTH_MODE::NEURAL;
+    init_parameters.depth_mode = camera_cfg.depth_mode;
 
     std::cout << "Opening file svo file (" << camera_cfg.svo_path.string()
               << ")...\n";

@@ -1,7 +1,6 @@
 #pragma once
 #include "../config.hpp"
 #include "../utils/status.hpp"
-#include "../utils/zed_utils.hpp"
 #include <cassert>
 #include <fmt/format.h>
 #include <magic_enum/magic_enum.hpp>
